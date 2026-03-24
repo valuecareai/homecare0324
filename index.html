@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>재택진료 v3</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f0f2f5;color:#333}
+.app{max-width:480px;margin:0 auto;min-height:100vh;background:#fff;position:relative;overflow-x:hidden}
+@media(min-width:768px){.app{max-width:100%;display:flex;flex-direction:column}}
+.login-bg{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:20px}
+.login-card{background:#fff;border-radius:20px;padding:40px 30px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.login-card h1{text-align:center;color:#667eea;margin-bottom:8px;font-size:1.5em}
+.login-card p{text-align:center;color:#888;margin-bottom:24px;font-size:0.9em}
+.login-card select,.login-card input{width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:12px;font-size:1em;margin-bottom:12px;outline:none;transition:border 0.3s}
+.login-card select:focus,.login-card input:focus{border-color:#667eea}
+.login-card button{width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:1.1em;font-weight:600;cursor:pointer;transition:transform 0.2s}
+.login-card button:hover{transform:scale(1.02)}
+.nav-bar{display:flex;justify-content:space-around;background:#fff;border-top:1px solid #eee;padding:8px 0;position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;z-index:100}
+@media(min-width:768px){.nav-bar{max-width:100%;position:sticky;bottom:0}}
+.nav-item{display:flex;flex-direction:column;align-items:center;font-size:0.7em;color:#999;cursor:pointer;padding:4px 8px;transition:color 0.2s}
+.nav-item.active{color:#667eea}
+.nav-item i{font-size:1.4em;margin-bottom:2px}
+.header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.header h2{font-size:1.1em;font-weight:600}
+.logout-btn{background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:0.85em}
+.content{padding:16px;padding-bottom:80px}
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 12px rgba(0,0,0,0.06);border:1px solid #f0f0f0;transition:transform 0.2s}
+.card:hover{transform:translateY(-1px)}
+.btn{padding:10px 20px;border:none;border-radius:12px;font-size:0.9em;font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+.btn-danger{background:#ff4757;color:#fff}
+.btn-success{background:#2ed573;color:#fff}
+.btn-warning{background:#ffa502;color:#fff}
+.btn-sm{padding:6px 12px;font-size:0.8em}
+.btn-full{width:100%}
+.btn:hover{opacity:0.9;transform:scale(1.02)}
+.patient-item{display:flex;align-items:center;padding:12px;border-radius:12px;margin-bottom:8px;background:#f8f9ff;cursor:pointer;transition:background 0.2s}
+.patient-item:hover{background:#eef0ff}
+.patient-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:1em;margin-right:12px;flex-shrink:0}
+.patient-info{flex:1}
+.patient-name{font-weight:600;font-size:0.95em}
+.patient-sub{color:#888;font-size:0.8em;margin-top:2px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-weight:600;margin-bottom:6px;font-size:0.9em;color:#555}
+.form-input{width:100%;padding:10px 14px;border:2px solid #e8e8e8;border-radius:10px;font-size:0.95em;outline:none;transition:border 0.3s}
+.form-input:focus{border-color:#667eea}
+textarea.form-input{min-height:80px;resize:vertical}
+.chip-container{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 14px;border-radius:20px;font-size:0.82em;cursor:pointer;border:2px solid #e0e0e0;background:#fff;transition:all 0.2s;user-select:none}
+.chip.selected{background:#667eea;color:#fff;border-color:#667eea}
+.schedule-grid{display:grid;gap:2px;font-size:0.78em}
+.schedule-header{background:#667eea;color:#fff;padding:8px 4px;text-align:center;font-weight:600;border-radius:6px;font-size:0.85em}
+.schedule-cell{padding:6px 4px;min-height:60px;border:1px solid #eee;border-radius:6px;cursor:pointer;transition:background 0.2s;position:relative}
+.schedule-cell:hover{background:#f0f0ff}
+.visit-tag{padding:3px 6px;border-radius:6px;font-size:0.75em;margin-bottom:2px;display:block;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.visit-tag.cancelled{background:#ccc;text-decoration:line-through}
+.visit-tag.absence-tag{background:#ffa502}
+.tabs{display:flex;gap:4px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px}
+.tab{padding:8px 16px;border-radius:20px;font-size:0.85em;cursor:pointer;white-space:nowrap;background:#f0f0f0;border:none;font-weight:500;transition:all 0.2s}
+.tab.active{background:#667eea;color:#fff}
+#map{width:100%;height:400px;border-radius:16px;z-index:1}
+.route-info{background:#f8f9ff;border-radius:12px;padding:12px;margin-top:12px}
+.route-stop{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #eee}
+.route-stop:last-child{border-bottom:none}
+.route-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:0.8em;margin-right:10px;flex-shrink:0}
+.chat-container{display:flex;flex-direction:column;height:calc(100vh - 160px)}
+.chat-messages{flex:1;overflow-y:auto;padding:16px}
+.chat-bubble{max-width:75%;padding:10px 14px;border-radius:16px;margin-bottom:8px;font-size:0.9em;line-height:1.4}
+.chat-bubble.sent{background:#667eea;color:#fff;margin-left:auto;border-bottom-right-radius:4px}
+.chat-bubble.received{background:#f0f0f0;border-bottom-left-radius:4px}
+.chat-input-area{display:flex;gap:8px;padding:12px;border-top:1px solid #eee;background:#fff}
+.chat-input-area input{flex:1;padding:10px 14px;border:2px solid #e8e8e8;border-radius:20px;outline:none}
+.chat-input-area button{width:40px;height:40px;border-radius:50%;border:none;background:#667eea;color:#fff;cursor:pointer}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+.modal h3{margin-bottom:16px;font-size:1.1em}
+.fab{position:fixed;bottom:80px;right:20px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;font-size:1.5em;cursor:pointer;box-shadow:0 4px 20px rgba(102,126,234,0.4);z-index:90;transition:transform 0.2s}
+.fab:hover{transform:scale(1.1)}
+@media(min-width:768px){.fab{right:calc(50% - 220px)}}
+.week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.week-nav button{background:none;border:2px solid #667eea;color:#667eea;padding:6px 14px;border-radius:20px;cursor:pointer;font-size:0.8em;font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.week-nav span{font-weight:600;font-size:0.95em}
+.member-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.72em;margin:1px;color:#fff;touch-action:none}
+.drop-zone{border:2px dashed #667eea !important;background:#f0f0ff !important}
+.conflict-warn{color:#ff4757;font-size:0.78em;margin-top:4px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// Error Boundary for debugging
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null, stack: '' }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error: error }; }
+  componentDidCatch(error, info) { this.setState({ stack: info && info.componentStack ? info.componentStack : 'no stack' }); }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement('div', {style:{padding:20,color:'red',fontSize:'12px',fontFamily:'monospace'}},
+        React.createElement('h2', null, 'Error:'),
+        React.createElement('pre', {style:{whiteSpace:'pre-wrap',background:'#fff0f0',padding:10,borderRadius:8}}, String(this.state.error)),
+        React.createElement('h3', null, 'Component Stack:'),
+        React.createElement('pre', {style:{whiteSpace:'pre-wrap',background:'#fff8e0',padding:10,borderRadius:8,fontSize:'11px'}}, this.state.stack),
+        React.createElement('button', {onClick:function(){location.reload();},style:{marginTop:10,padding:'8px 16px'}}, 'Reload')
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ========== ICON CONSTANTS (emoji as JS strings to avoid JSX parsing issues) ==========
+var IC = {
+  hospital:'+', logout:'[X]', users:'[=]', calendar:'[#]',
+  map:'[M]', chat:'[C]', plus:'+', save:'[S]',
+  camera:'[O]', clip:'[A]', pin:'*', heart:'*',
+  run:'~', note:'*', info:'(i)', undo:'<<',
+  x:'X', person:'[P]', route:'[M]', check:'[V]',
+  wait:'...', shield:'[G]', nurse:'[N]',
+  plane:'>', left:'<', right:'>', back:'<',
+  lock:'[!]', swap:'[R]', warn:'(!)', ok:'[O]'
+};
+
+// ========== CONSTANTS ==========
+const DISEASES = ['고혈압','당뇨','관절염','치매','뇌졸중','파킨슨병','심부전','만성폐쇄성폐질환','골다공증','우울증'];
+const HABITS = ['흡연','음주','운동부족','불규칙한식사','수면장애','과식','카페인과다','약물복용불규칙'];
+const COLORS = ['#667eea','#e17055','#00b894','#fdcb6e','#6c5ce7','#ff6b81','#1dd1a5','#f39c12','#e84393','#0984e3'];
+const ROLE_COLORS = {의사:'#667eea',간호사:'#00b894',복지사:'#e17055',팀장:'#6c5ce7'};
+const VISIT_COLORS = ['#667eea','#e17055','#00b894','#f39c12','#6c5ce7','#e84393','#0984e3','#fdcb6e'];
+
+const DEMO_PATIENTS = [
+  {id:1,name:'환자1',birth:'1942-03-15',address:'경기도 시흥시 정왕대로 123, 정왕동 현대아파트 301동 502호',lat:37.3460,lng:126.7380,diseases:['고혈압','당뇨'],habits:['운동부족','불규칙한식사'],notes:'인슐린 자가주사 교육 필요. 시력 저하로 약 구분 어려움.',guardian:'010-1234-5678',caregiver:'010-9876-5432',guardianName:'보호자1(아들)',caregiverName:'요양보호사1'},
+  {id:2,name:'환자2',birth:'1938-07-22',address:'경기도 시흥시 대야로 45, 대야동 삼성래미안 102동 803호',lat:37.4270,lng:126.8060,diseases:['치매','고혈압'],habits:['수면장애'],notes:'경증 치매. 약 복용 시간 자주 잊음. 배회 경향 있음.',guardian:'010-2345-6789',caregiver:'010-8765-4321',guardianName:'보호자2(딸)',caregiverName:'요양보호사2'},
+  {id:3,name:'환자3',birth:'1945-11-03',address:'경기도 시흥시 신천로 78, 신천동 LG자이 205동 1204호',lat:37.4350,lng:126.8130,diseases:['뇌졸중','관절염'],habits:['흡연','음주'],notes:'좌측 편마비. 재활운동 병행 중. 낙상 주의.',guardian:'010-3456-7890',caregiver:'010-7654-3210',guardianName:'보호자3(딸)',caregiverName:'요양보호사3'},
+  {id:4,name:'환자4',birth:'1940-01-18',address:'경기도 시흥시 목감로 234, 목감동 호반베르디움 103동 405호',lat:37.4050,lng:126.8570,diseases:['파킨슨병','우울증'],habits:['운동부족','수면장애'],notes:'손 떨림 심화. 우울감 호소 자주. 정서적 지지 필요.',guardian:'010-4567-8901',caregiver:'010-6543-2109',guardianName:'보호자4(아들)',caregiverName:'요양보호사4'},
+  {id:5,name:'환자5',birth:'1943-05-30',address:'경기도 시흥시 월곶해안로 56, 월곶동 대림e편한세상 501동 302호',lat:37.3820,lng:126.7280,diseases:['심부전','고혈압','당뇨'],habits:['과식','카페인과다'],notes:'체중 관리 필수. 저염식이 교육 반복 필요. 부종 모니터링.',guardian:'010-5678-9012',caregiver:'010-5432-1098',guardianName:'보호자5(딸)',caregiverName:'요양보호사5'},
+  {id:6,name:'환자6',birth:'1936-09-12',address:'경기도 시흥시 군자로 89, 군자동 코오롱하늘채 201동 1503호',lat:37.3570,lng:126.7450,diseases:['골다공증','관절염'],habits:['운동부족'],notes:'골절 위험 높음. 실내 이동 시에도 보행기 사용. 칼슘제 복용 중.',guardian:'010-6789-0123',caregiver:'010-4321-0987',guardianName:'보호자6(손녀)',caregiverName:'요양보호사6'},
+  {id:7,name:'환자7',birth:'1941-12-25',address:'경기도 시흥시 능곡로 345, 능곡동 힐스테이트 301동 901호',lat:37.4190,lng:126.8350,diseases:['만성폐쇄성폐질환','고혈압'],habits:['흡연','음주'],notes:'금연 교육 지속 필요. 호흡기 관리. 산소포화도 수시 체크.',guardian:'010-7890-1234',caregiver:'010-3210-9876',guardianName:'보호자7(딸)',caregiverName:'요양보호사7'},
+  {id:8,name:'환자8',birth:'1939-04-08',address:'경기도 시흥시 배곧로 678, 배곧동 센트럴푸르지오 105동 602호',lat:37.3680,lng:126.7170,diseases:['당뇨','우울증'],habits:['불규칙한식사','약물복용불규칙'],notes:'독거 어르신. 식사 거르는 경우 多. 사회적 고립감 호소.',guardian:'010-8901-2345',caregiver:'010-2109-8765',guardianName:'보호자8(조카)',caregiverName:'요양보호사8'},
+  {id:9,name:'환자9',birth:'1944-08-14',address:'경기도 시흥시 은행로 90, 은행동 푸르지오 202동 1101호',lat:37.4430,lng:126.8010,diseases:['치매','파킨슨병'],habits:['수면장애','운동부족'],notes:'중등도 치매. 24시간 돌봄 필요. 야간 배회 빈번.',guardian:'010-9012-3456',caregiver:'010-1098-7654',guardianName:'보호자9(딸)',caregiverName:'요양보호사9'},
+  {id:10,name:'환자10',birth:'1937-02-28',address:'경기도 시흥시 매화로 12, 매화동 두산위브 101동 204호',lat:37.4140,lng:126.7950,diseases:['뇌졸중','심부전','골다공증'],habits:['운동부족','과식'],notes:'와상 상태. 욕창 관리 필요. 체위 변경 교육.',guardian:'010-0123-4567',caregiver:'010-0987-6543',guardianName:'보호자10(아들)',caregiverName:'요양보호사10'}
+];
+
+// Staff - NO fixed team assignment
+const STAFF = [
+  {id:'doc1',name:'의사A',role:'의사',roleLabel:'의사',pw:'1234'},
+  {id:'doc2',name:'의사B',role:'의사',roleLabel:'의사',pw:'1234'},
+  {id:'nurse1',name:'간호사A',role:'간호사',roleLabel:'간호사',pw:'1234'},
+  {id:'nurse2',name:'간호사B',role:'간호사',roleLabel:'간호사',pw:'1234'},
+  {id:'sw1',name:'복지사A',role:'복지사',roleLabel:'팀원 복지사',pw:'1234'},
+  {id:'sw2',name:'복지사B',role:'복지사',roleLabel:'팀원 복지사',pw:'1234'},
+  {id:'leader',name:'팀장',role:'팀장',roleLabel:'팀장 복지사',pw:'1234'}
+];
+
+const DOCTORS = STAFF.filter(s => s.role === '의사');
+const NURSES = STAFF.filter(s => s.role === '간호사');
+const SOCIAL_WORKERS = STAFF.filter(s => s.role === '복지사');
+
+const TIME_SLOTS = [
+  {id:'morning',label:'오전 9:00~11:00',short:'9-11시'},
+  {id:'afternoon1',label:'오후 1:00~3:00',short:'1-3시'},
+  {id:'afternoon2',label:'오후 4:00~6:00',short:'4-6시'}
+];
+const DAYS = ['월','화','수','목','금'];
+
+function getMonday(d) {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(date.setDate(diff));
+}
+function formatDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function getStaff(id) { return STAFF.find(s => s.id === id); }
+
+// Generate demo schedule with DYNAMIC team composition
+function generateDemoSchedule() {
+  const monday = getMonday(new Date());
+  const schedule = {};
+  const patients = [...DEMO_PATIENTS];
+  let pIdx = 0;
+
+  // 2개 조의 구성이 날마다 바뀜 (동적 편성)
+  const compositions = [
+    {docId:'doc1',nurseId:'nurse1',swId:'sw1'},
+    {docId:'doc2',nurseId:'nurse2',swId:'sw2'},
+    {docId:'doc1',nurseId:'nurse2',swId:'sw1'},
+    {docId:'doc2',nurseId:'nurse1',swId:'sw2'},
+  ];
+
+  // 요일별 스케줄 패턴: 각 조가 어느 시간대에 배정되는지
+  // 같은 시간대에 2개 조가 동시에 진료하는 경우 포함
+  // 패턴: [조1의 슬롯들, 조2의 슬롯들]
+  const dayPatterns = [
+    // 월: 2개조 동시(오전), 조1만(오후1), 조2만(오후2) → 조1: 오전+오후1, 조2: 오전+오후2
+    [[0,1],[0,2]],
+    // 화: 2개조 동시(오후1), 조1만(오전), 조2만(오후2) → 조1: 오전+오후1, 조2: 오후1+오후2
+    [[0,1],[1,2]],
+    // 수: 2개조 동시(오전+오후2) → 조1: 오전+오후2, 조2: 오전+오후2
+    [[0,2],[0,2]],
+    // 목: 조1만(오전+오후1), 조2만(오후1+오후2) → 오후1에만 동시
+    [[0,1],[1,2]],
+    // 금: 2개조 동시(오전), 조1만(오후2), 조2만(오후1)
+    [[0,2],[0,1]],
+  ];
+
+  for (let dayIdx = 0; dayIdx < 5; dayIdx++) {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + dayIdx);
+    const dateStr = formatDate(date);
+    schedule[dateStr] = {};
+
+    const comp1 = compositions[(dayIdx * 2) % compositions.length];
+    const comp2 = compositions[(dayIdx * 2 + 1) % compositions.length];
+    const groups = [comp1, comp2];
+    const pattern = dayPatterns[dayIdx];
+
+    groups.forEach((comp, gi) => {
+      pattern[gi].forEach(si => {
+        const slot = TIME_SLOTS[si];
+        const patient = patients[pIdx % patients.length];
+        pIdx++;
+        const key = `${dateStr}_${slot.id}_${gi}`;
+        schedule[dateStr][key] = {
+          id: key, date: dateStr, slotId: slot.id, slotLabel: slot.label,
+          patientId: patient.id, patientName: patient.name,
+          doctorId: comp.docId, nurseId: comp.nurseId, swId: comp.swId,
+          status: 'scheduled',
+          absentMemberId: null,
+          colorIdx: gi
+        };
+      });
+    });
+  }
+  return schedule;
+}
+
+// Chat demo
+const DEMO_CHATS = {};
+DEMO_PATIENTS.forEach(p => {
+  DEMO_CHATS[`guardian_${p.id}`] = [
+    {id:1,from:'other',text:`안녕하세요, ${p.name} 보호자 ${p.guardianName}입니다.`,time:'09:00'},
+    {id:2,from:'me',text:`안녕하세요. ${p.name}님 다음 진료 일정 안내드리겠습니다.`,time:'09:05'}
+  ];
+  DEMO_CHATS[`caregiver_${p.id}`] = [
+    {id:1,from:'other',text:`${p.name}님 요양보호사 ${p.caregiverName}입니다. 오늘 상태 보고드립니다.`,time:'08:30'},
+    {id:2,from:'me',text:'감사합니다. 특이사항 있으면 알려주세요.',time:'08:35'}
+  ];
+});
+
+// ========== localStorage 헬퍼 ==========
+function loadData(key, fallback) {
+  try {
+    const saved = localStorage.getItem('homecare_' + key);
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return typeof fallback === 'function' ? fallback() : fallback;
+}
+function saveData(key, value) {
+  try { localStorage.setItem('homecare_' + key, JSON.stringify(value)); } catch(e) {}
+}
+
+// ========== APP ==========
+function App() {
+  const [user, setUser] = useState(null);
+  const [page, setPage] = useState('patients');
+  const [patients, setPatients] = useState(() => loadData('patients', DEMO_PATIENTS));
+  const [schedule, setSchedule] = useState(() => loadData('schedule', generateDemoSchedule));
+  const [selPatient, setSelPatient] = useState(null);
+  const [showRegForm, setShowRegForm] = useState(false);
+  const [showSchedCreator, setShowSchedCreator] = useState(false);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [chatTarget, setChatTarget] = useState(null);
+  const [chats, setChats] = useState(() => loadData('chats', DEMO_CHATS));
+  const [showRoute, setShowRoute] = useState(false);
+  const [detailVisit, setDetailVisit] = useState(null);
+  const [dragItem, setDragItem] = useState(null);
+
+  // 데이터 변경 시 자동 저장
+  useEffect(() => { saveData('patients', patients); }, [patients]);
+  useEffect(() => { saveData('schedule', schedule); }, [schedule]);
+  useEffect(() => { saveData('chats', chats); }, [chats]);
+
+  const isLeader = user?.role === '팀장';
+
+  if (!user) return <LoginScreen onLogin={setUser}/>;
+
+  return (
+    <div className="app">
+      <Header user={user} onLogout={() => setUser(null)} page={page}/>
+      <div className="content">
+        {page === 'patients' && <PatientPage patients={patients} setPatients={setPatients} selPatient={selPatient} setSelPatient={setSelPatient} showRegForm={showRegForm} setShowRegForm={setShowRegForm} onChat={t => {setChatTarget(t);setPage('chat');}}/>}
+        {page === 'schedule' && <SchedulePage schedule={schedule} setSchedule={setSchedule} patients={patients} user={user} weekOffset={weekOffset} setWeekOffset={setWeekOffset} isLeader={isLeader} showSchedCreator={showSchedCreator} setShowSchedCreator={setShowSchedCreator} onDetail={setDetailVisit} dragItem={dragItem} setDragItem={setDragItem}/>}
+        {page === 'mySchedule' && <MySchedulePage schedule={schedule} patients={patients} user={user} weekOffset={weekOffset} setWeekOffset={setWeekOffset} showRoute={showRoute} setShowRoute={setShowRoute}/>}
+        {page === 'chat' && <ChatPage chatTarget={chatTarget} setChatTarget={setChatTarget} chats={chats} setChats={setChats} patients={patients}/>}
+      </div>
+      {detailVisit && <VisitDetailModal visit={detailVisit} onClose={() => setDetailVisit(null)} schedule={schedule} setSchedule={setSchedule} isLeader={isLeader} patients={patients}/>}
+      <NavBar page={page} setPage={setPage}/>
+    </div>
+  );
+}
+
+// ========== LOGIN ==========
+function LoginScreen({onLogin}) {
+  const [sel, setSel] = useState('');
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState('');
+  const go = () => {
+    const s = STAFF.find(x => x.id === sel);
+    if (!s) { setErr('사용자를 선택해주세요.'); return; }
+    if (pw !== s.pw) { setErr('비밀번호가 올바르지 않습니다.'); return; }
+    onLogin(s);
+  };
+  return (
+    <div className="login-bg">
+      <div className="login-card">
+        <div style={{textAlign:'center',marginBottom:16,fontSize:'3em'}}>{IC.hospital}</div>
+        <h1>재택진료 관리</h1>
+        <p>사회적협동조합 의료기관</p>
+        <select value={sel} onChange={e=>{setSel(e.target.value);setErr('');}}>
+          <option value="">--- 사용자 선택 ---</option>
+          {STAFF.map(s => <option key={s.id} value={s.id}>{s.name} ({s.roleLabel})</option>)}
+        </select>
+        <input type="password" placeholder="비밀번호 (데모: 1234)" value={pw} onChange={e=>{setPw(e.target.value);setErr('');}} onKeyDown={e=>e.key==='Enter'&&go()}/>
+        {err && <p style={{color:'#ff4757',fontSize:'0.85em',marginBottom:8}}>{err}</p>}
+        <button onClick={go}>로그인</button>
+      </div>
+    </div>
+  );
+}
+
+// ========== HEADER / NAV ==========
+function Header({user, onLogout, page}) {
+  const t = {patients:'환자 관리',schedule:'스케줄 관리',mySchedule:'내 스케줄',chat:'채팅'};
+  return (
+    <div className="header">
+      <div><h2>{t[page]||'재택진료'}</h2><span style={{fontSize:'0.75em',opacity:0.8}}>{user.name} ({user.roleLabel})</span></div>
+      <button className="logout-btn" onClick={onLogout}>{IC.logout} 로그아웃</button>
+    </div>
+  );
+}
+function NavBar({page, setPage}) {
+  const items = [{id:'patients',icon:IC.users,label:'환자'},{id:'schedule',icon:IC.calendar,label:'스케줄'},{id:'mySchedule',icon:IC.map,label:'내 일정'},{id:'chat',icon:IC.chat,label:'채팅'}];
+  return (
+    <div className="nav-bar">
+      {items.map(i => <div key={i.id} className={`nav-item ${page===i.id?'active':''}`} onClick={()=>setPage(i.id)}><span>{i.icon}</span><span>{i.label}</span></div>)}
+    </div>
+  );
+}
+
+// ========== PATIENT PAGE ==========
+function PatientPage({patients, setPatients, selPatient, setSelPatient, showRegForm, setShowRegForm, onChat}) {
+  const [search, setSearch] = useState('');
+  const filtered = patients.filter(p => p.name.includes(search) || p.address.includes(search));
+  if (showRegForm) return <PatientForm patients={patients} setPatients={setPatients} onClose={()=>setShowRegForm(false)}/>;
+  if (selPatient) return <PatientDetail patient={selPatient} onBack={()=>setSelPatient(null)} onChat={onChat}/>;
+  return (
+    <div>
+      <div style={{display:'flex',gap:8,marginBottom:16,alignItems:'center'}}>
+        <input className="form-input" placeholder="환자 검색 (이름, 주소)" value={search} onChange={e=>setSearch(e.target.value)} style={{flex:1,marginBottom:0}}/>
+        <button className="btn btn-primary btn-sm" onClick={()=>setShowRegForm(true)} style={{whiteSpace:'nowrap',padding:'8px 14px',borderRadius:10,fontSize:'0.85em',fontWeight:700}}>+ 환자 등록</button>
+      </div>
+      {filtered.map((p,i) => (
+        <div key={p.id} className="patient-item" onClick={()=>setSelPatient(p)}>
+          <div className="patient-avatar" style={{background:COLORS[i%COLORS.length]}}>{p.name[0]}</div>
+          <div className="patient-info">
+            <div className="patient-name">{p.name}</div>
+            <div className="patient-sub">{p.birth} | {p.diseases.join(', ')}</div>
+            <div className="patient-sub" style={{color:'#aaa'}}>{p.address.substring(0,30)}...</div>
+          </div>
+          {IC.right}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PatientDetail({patient: p, onBack, onChat}) {
+  return (
+    <div>
+      <button className="btn btn-sm" onClick={onBack} style={{marginBottom:12,background:'#f0f0f0',color:'#333'}}>{IC.back} 목록으로</button>
+      <div className="card">
+        <div style={{display:'flex',alignItems:'center',marginBottom:16}}>
+          <div className="patient-avatar" style={{background:COLORS[p.id%COLORS.length],width:56,height:56,fontSize:'1.3em'}}>{p.name[0]}</div>
+          <div style={{marginLeft:12}}><h3 style={{fontSize:'1.2em'}}>{p.name}</h3><span style={{color:'#888',fontSize:'0.9em'}}>{p.birth}</span></div>
+        </div>
+        <div className="form-group"><label>{IC.pin} 주소</label><p style={{fontSize:'0.9em',color:'#555'}}>{p.address}</p></div>
+        <div className="form-group"><label>{IC.heart} 질병</label><div className="chip-container">{p.diseases.map(d=><span key={d} className="chip selected">{d}</span>)}</div></div>
+        <div className="form-group"><label>{IC.run} 생활습관</label><div className="chip-container">{p.habits.map(h=><span key={h} className="chip selected" style={{borderColor:'#ffa502',background:'#ffa502'}}>{h}</span>)}</div></div>
+        <div className="form-group"><label>{IC.note} 특이사항</label><p style={{fontSize:'0.9em',color:'#555',background:'#f8f9ff',padding:10,borderRadius:8}}>{p.notes}</p></div>
+      </div>
+      <div className="card">
+        <div style={{fontWeight:600,marginBottom:12}}>연락처</div>
+        <div style={{display:'flex',gap:8,marginBottom:8}}>
+          <div style={{flex:1,background:'#f0f8ff',padding:12,borderRadius:12}}><div style={{fontSize:'0.8em',color:'#888'}}>보호자</div><div style={{fontWeight:600,fontSize:'0.9em'}}>{p.guardianName}</div><div style={{fontSize:'0.85em',color:'#667eea'}}>{p.guardian}</div></div>
+          <div style={{flex:1,background:'#fff8f0',padding:12,borderRadius:12}}><div style={{fontSize:'0.8em',color:'#888'}}>요양보호사</div><div style={{fontWeight:600,fontSize:'0.9em'}}>{p.caregiverName}</div><div style={{fontSize:'0.85em',color:'#e17055'}}>{p.caregiver}</div></div>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <button className="btn btn-primary btn-sm" style={{flex:1}} onClick={()=>onChat({type:'guardian',patientId:p.id,name:p.guardianName})}>{IC.chat} 보호자 채팅</button>
+          <button className="btn btn-warning btn-sm" style={{flex:1}} onClick={()=>onChat({type:'caregiver',patientId:p.id,name:p.caregiverName})}>{IC.chat} 요양보호사 채팅</button>
+        </div>
+      </div>
+      <div className="card"><button className="btn btn-sm" style={{background:'#f0f0f0',color:'#333',width:'100%'}}>{IC.clip} 파일/사진 첨부</button></div>
+    </div>
+  );
+}
+
+function PatientForm({patients, setPatients, onClose}) {
+  const [form, setForm] = useState({name:'',birth:'',address:'',diseases:[],habits:[],notes:'',guardian:'',caregiver:'',guardianName:'',caregiverName:'',lat:37.38,lng:126.80});
+  const toggle = (f, item) => { const a = form[f]; setForm({...form,[f]:a.includes(item)?a.filter(x=>x!==item):[...a,item]}); };
+  const save = () => {
+    if (!form.name||!form.birth){alert('이름과 생년월일은 필수입니다.');return;}
+    setPatients([...patients,{...form,id:Date.now()}]);
+    onClose();
+  };
+  return (
+    <div>
+      <button className="btn btn-sm" onClick={onClose} style={{marginBottom:12,background:'#f0f0f0',color:'#333'}}>{IC.back} 취소</button>
+      <h3 style={{marginBottom:16}}>새 환자 등록</h3>
+      <div className="form-group"><label>이름 *</label><input className="form-input" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="환자 이름"/></div>
+      <div className="form-group"><label>생년월일 *</label><input className="form-input" type="date" value={form.birth} onChange={e=>setForm({...form,birth:e.target.value})}/></div>
+      <div className="form-group"><label>주소</label><input className="form-input" value={form.address} onChange={e=>setForm({...form,address:e.target.value})} placeholder="상세 주소 입력"/></div>
+      <div className="form-group"><label>질병 (복수 선택)</label><div className="chip-container">{DISEASES.map(d=><span key={d} className={`chip ${form.diseases.includes(d)?'selected':''}`} onClick={()=>toggle('diseases',d)}>{d}</span>)}</div></div>
+      <div className="form-group"><label>생활습관 (복수 선택)</label><div className="chip-container">{HABITS.map(h=><span key={h} className={`chip ${form.habits.includes(h)?'selected':''}`} onClick={()=>toggle('habits',h)}>{h}</span>)}</div></div>
+      <div className="form-group"><label>특이사항</label><textarea className="form-input" value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="특이사항 메모"/></div>
+      <div className="form-group"><label>보호자 이름</label><input className="form-input" value={form.guardianName} onChange={e=>setForm({...form,guardianName:e.target.value})} placeholder="보호자 이름(관계)"/></div>
+      <div className="form-group"><label>보호자 연락처</label><input className="form-input" value={form.guardian} onChange={e=>setForm({...form,guardian:e.target.value})} placeholder="010-XXXX-XXXX"/></div>
+      <div className="form-group"><label>요양보호사 이름</label><input className="form-input" value={form.caregiverName} onChange={e=>setForm({...form,caregiverName:e.target.value})} placeholder="요양보호사 이름"/></div>
+      <div className="form-group"><label>요양보호사 연락처</label><input className="form-input" value={form.caregiver} onChange={e=>setForm({...form,caregiver:e.target.value})} placeholder="010-XXXX-XXXX"/></div>
+      <div className="form-group"><button className="btn btn-sm" style={{background:'#f0f0f0',color:'#333',width:'100%'}}>{IC.camera} 파일/사진 첨부</button></div>
+      <button className="btn btn-primary btn-full" onClick={save}>{IC.save} 등록하기</button>
+    </div>
+  );
+}
+
+// ========== SCHEDULE PAGE ==========
+function SchedulePage({schedule, setSchedule, patients, user, weekOffset, setWeekOffset, isLeader, showSchedCreator, setShowSchedCreator, onDetail, dragItem, setDragItem}) {
+  const monday = getMonday(new Date());
+  monday.setDate(monday.getDate() + weekOffset * 7);
+  const weekDates = Array.from({length:5},(_,i)=>{const d=new Date(monday);d.setDate(monday.getDate()+i);return d;});
+
+  const getVisits = (dateStr, slotId) => Object.values(schedule[dateStr]||{}).filter(v=>v.slotId===slotId);
+
+  const isStaffBusy = (staffId, dateStr, slotId, excludeVisitId) => {
+    return Object.values(schedule[dateStr]||{}).some(v =>
+      v.id !== excludeVisitId && v.slotId === slotId && v.status !== 'cancelled' &&
+      (v.doctorId === staffId || v.nurseId === staffId || v.swId === staffId)
+    );
+  };
+
+  const [alert, setAlert] = useState(null);
+
+  // === 포인터 이벤트 기반 드래그 시스템 ===
+  const dragRef = useRef(null); // {type, data, ghostEl, startX, startY, isDragging}
+  const scheduleRef = useRef(schedule);
+  scheduleRef.current = schedule;
+
+  const DRAG_THRESHOLD = 8; // px - 이만큼 이동해야 드래그 시작
+
+  const createGhost = (text, color) => {
+    const g = document.createElement('div');
+    g.style.cssText = `position:fixed;z-index:9999;pointer-events:none;
+      padding:6px 14px;border-radius:12px;font-size:13px;font-weight:700;
+      color:#fff;background:${color};box-shadow:0 6px 24px rgba(0,0,0,0.35);
+      transform:translate(-50%,-120%);white-space:nowrap;opacity:0.92;
+      transition:none;`;
+    g.textContent = text;
+    document.body.appendChild(g);
+    return g;
+  };
+
+  const findDropTarget = (x, y) => {
+    const els = document.elementsFromPoint(x, y);
+    for (const el of els) {
+      // 진료(visit) 타겟
+      if (el.dataset.visitId) {
+        return { type:'visit', visitId:el.dataset.visitId, date:el.dataset.visitDate, slotId:el.dataset.visitSlot };
+      }
+      // 셀 타겟
+      if (el.dataset.cellDate) {
+        return { type:'cell', date:el.dataset.cellDate, slotId:el.dataset.cellSlot };
+      }
+    }
+    return null;
+  };
+
+  const highlightTarget = (x, y) => {
+    // 기존 하이라이트 제거
+    document.querySelectorAll('[data-drag-highlight]').forEach(el => {
+      el.style.outline = '';
+      el.style.background = '';
+      el.removeAttribute('data-drag-highlight');
+    });
+    const target = findDropTarget(x, y);
+    if (!target) return;
+    const dr = dragRef.current;
+    if (!dr) return;
+
+    if (dr.type === 'visit' && target.type === 'cell') {
+      const cellEl = document.querySelector(`[data-cell-date="${target.date}"][data-cell-slot="${target.slotId}"]`);
+      if (cellEl) {
+        cellEl.style.outline = '3px solid #667eea';
+        cellEl.style.background = '#e8edff';
+        cellEl.setAttribute('data-drag-highlight', '1');
+      }
+    }
+    if (dr.type === 'member' && target.type === 'visit') {
+      const vEl = document.querySelector(`[data-visit-id="${target.visitId}"]`);
+      if (vEl) {
+        vEl.style.outline = '3px solid #667eea';
+        vEl.style.background = '#e8edff';
+        vEl.setAttribute('data-drag-highlight', '1');
+      }
+    }
+  };
+
+  const onPointerMoveFn = useCallback((e) => {
+    const dr = dragRef.current;
+    if (!dr) return;
+    const dx = e.clientX - dr.startX;
+    const dy = e.clientY - dr.startY;
+
+    if (!dr.isDragging) {
+      if (Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD) {
+        dr.isDragging = true;
+        const color = dr.type === 'visit' ? '#e03131' : '#667eea';
+        const label = dr.type === 'visit' ? `${IC.check} ${dr.data.visit.patientName}` : `${IC.person} ${dr.data.staffName}`;
+        dr.ghostEl = createGhost(label, color);
+        document.body.style.userSelect = 'none';
+      }
+      return;
+    }
+    if (dr.ghostEl) {
+      dr.ghostEl.style.left = e.clientX + 'px';
+      dr.ghostEl.style.top = e.clientY + 'px';
+    }
+    highlightTarget(e.clientX, e.clientY);
+  }, []);
+
+  const doMoveVisit = useCallback((v, dateStr, slotId) => {
+    const s = JSON.parse(JSON.stringify(scheduleRef.current));
+    if (s[v.date] && s[v.date][v.id]) delete s[v.date][v.id];
+    const newKey = `${dateStr}_${slotId}_${Date.now()}`;
+    if (!s[dateStr]) s[dateStr] = {};
+    s[dateStr][newKey] = {...v, id:newKey, date:dateStr, slotId, slotLabel:TIME_SLOTS.find(t=>t.id===slotId)?.label||'', status:'scheduled'};
+    setSchedule(s);
+  }, [setSchedule]);
+
+  const doMoveMember = useCallback((staffId, roleField, fromVisitId, fromDate, targetVisitId, targetDate) => {
+    const s = JSON.parse(JSON.stringify(scheduleRef.current));
+    const targetVisit = s[targetDate] && s[targetDate][targetVisitId];
+    if (!targetVisit) return;
+    const oldStaffId = targetVisit[roleField];
+    targetVisit[roleField] = staffId;
+    const fromVisit = s[fromDate] && s[fromDate][fromVisitId];
+    if (fromVisit && fromVisitId !== targetVisitId) {
+      fromVisit[roleField] = oldStaffId;
+    }
+    setSchedule(s);
+  }, [setSchedule]);
+
+  const onPointerUpFn = useCallback((e) => {
+    const dr = dragRef.current;
+    if (!dr) return;
+
+    // 하이라이트 제거
+    document.querySelectorAll('[data-drag-highlight]').forEach(el => {
+      el.style.outline = '';
+      el.style.background = '';
+      el.removeAttribute('data-drag-highlight');
+    });
+
+    if (dr.ghostEl) {
+      dr.ghostEl.remove();
+    }
+    document.body.style.userSelect = '';
+    document.removeEventListener('pointermove', onPointerMoveFn);
+    document.removeEventListener('pointerup', onPointerUpFn);
+
+    if (!dr.isDragging) {
+      dragRef.current = null;
+      // 드래그 안됨 = 클릭 → 상세보기
+      if (dr.type === 'visit' && dr.data.onClick) dr.data.onClick();
+      dragRef.current = null;
+      return;
+    }
+
+    const target = findDropTarget(e.clientX, e.clientY);
+    dragRef.current = null;
+
+    if (!target) return;
+
+    if (dr.type === 'visit' && target.type === 'cell') {
+      const v = dr.data.visit;
+      if (v.date === target.date && v.slotId === target.slotId) return; // 같은 자리
+      const members = [v.doctorId, v.nurseId, v.swId];
+      const conflicts = members.filter(m => isStaffBusy(m, target.date, target.slotId, v.id));
+      if (conflicts.length > 0) {
+        const names = conflicts.map(c => getStaff(c)?.name).join(', ');
+        setAlert({
+          msg: `${IC.warn} ${names}님이 해당 시간에 이미 다른 진료가 있습니다. 그래도 이동하시겠습니까?`,
+          onConfirm: () => { doMoveVisit(v, target.date, target.slotId); setAlert(null); },
+          onCancel: () => setAlert(null)
+        });
+        return;
+      }
+      doMoveVisit(v, target.date, target.slotId);
+
+    } else if (dr.type === 'member' && (target.type === 'visit')) {
+      const { staffId, role, fromVisitId, fromDate, staffName } = dr.data;
+      const targetVisitId = target.visitId;
+      const targetDate = target.date;
+      if (fromVisitId === targetVisitId && fromDate === targetDate) return; // 같은 진료
+      const roleField = role === '의사' ? 'doctorId' : role === '간호사' ? 'nurseId' : 'swId';
+      const busy = isStaffBusy(staffId, targetDate, target.slotId, targetVisitId);
+      if (busy) {
+        setAlert({
+          msg: `${IC.warn} ${staffName}님은 이 시간에 이미 다른 진료가 배정되어 있습니다. 그래도 배정하시겠습니까?`,
+          onConfirm: () => { doMoveMember(staffId, roleField, fromVisitId, fromDate, targetVisitId, targetDate); setAlert(null); },
+          onCancel: () => setAlert(null)
+        });
+        return;
+      }
+      doMoveMember(staffId, roleField, fromVisitId, fromDate, targetVisitId, targetDate);
+
+    } else if (dr.type === 'member' && target.type === 'cell') {
+      // 구성원을 빈 셀에 놓으면 무시 (구성원은 진료 위에만 놓을 수 있음)
+    }
+  }, [doMoveVisit, doMoveMember]);
+
+  const startDrag = (e, type, data) => {
+    if (!isLeader) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = {
+      type, data,
+      startX: e.clientX, startY: e.clientY,
+      isDragging: false, ghostEl: null
+    };
+    document.addEventListener('pointermove', onPointerMoveFn);
+    document.addEventListener('pointerup', onPointerUpFn);
+  };
+
+  const MemberBadges = ({visit}) => {
+    const badges = [
+      {id: visit.doctorId, role:'의사', color:ROLE_COLORS['의사']},
+      {id: visit.nurseId, role:'간호사', color:ROLE_COLORS['간호사']},
+      {id: visit.swId, role:'복지사', color:ROLE_COLORS['복지사']}
+    ];
+    return (
+      <div style={{marginTop:2}}>
+        {badges.map(b => {
+          const staff = getStaff(b.id);
+          if (!staff) return null;
+          return (
+            <span key={b.id+b.role} className="member-badge"
+              style={{
+                background: b.color, cursor: isLeader ? 'grab' : 'default',
+                padding:'3px 8px', fontSize:'0.75em', touchAction:'none'
+              }}
+              onPointerDown={isLeader && visit.status==='scheduled' ? (e) => {
+                startDrag(e, 'member', {
+                  staffId:b.id, role:b.role, staffName:staff.name,
+                  fromVisitId:visit.id, fromDate:visit.date
+                });
+              } : undefined}>
+              {staff.name} ↔
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <div className="week-nav">
+        <button onClick={()=>setWeekOffset(weekOffset-1)}>{IC.left} 이전주</button>
+        <span>{formatDate(weekDates[0])} ~ {formatDate(weekDates[4])}</span>
+        <button onClick={()=>setWeekOffset(weekOffset+1)}>다음주 {IC.right}</button>
+      </div>
+      {isLeader && <div style={{marginBottom:12}}><button className="btn btn-primary btn-sm" onClick={()=>setShowSchedCreator(true)}>{IC.plus} 스케줄 생성</button></div>}
+      <div className="schedule-grid" style={{gridTemplateColumns:'70px repeat(5,1fr)'}}>
+        <div className="schedule-header" style={{background:'#555'}}>시간/요일</div>
+        {weekDates.map((d,i)=><div key={i} className="schedule-header">{DAYS[i]} {d.getDate()}일</div>)}
+        {TIME_SLOTS.map(slot=>(
+          <React.Fragment key={slot.id}>
+            <div style={{padding:'8px 4px',fontSize:'0.72em',fontWeight:600,display:'flex',alignItems:'center',justifyContent:'center',textAlign:'center',background:'#f8f9ff',borderRadius:6}}>{slot.short}</div>
+            {weekDates.map((d,di)=>{
+              const dateStr=formatDate(d);
+              const visits=getVisits(dateStr,slot.id);
+              return (
+                <div key={di} className="schedule-cell"
+                  data-cell-date={dateStr} data-cell-slot={slot.id}>
+                  {visits.map(v=>(
+                    <div key={v.id} style={{marginBottom:4,borderRadius:6,padding:2,border:'2px solid transparent'}}
+                      data-visit-id={v.id} data-visit-date={v.date} data-visit-slot={v.slotId}>
+                      <span className={`visit-tag ${v.status==='cancelled'?'cancelled':''} ${v.status==='absence'?'absence-tag':''}`}
+                        style={{
+                          background:v.status==='scheduled'?VISIT_COLORS[v.colorIdx||0]:undefined,
+                          cursor: isLeader && v.status==='scheduled' ? 'grab' : 'pointer',
+                          touchAction:'none'
+                        }}
+                        onPointerDown={isLeader && v.status==='scheduled' ? (e) => {
+                          startDrag(e, 'visit', {visit:v, onClick:()=>onDetail(v)});
+                        } : undefined}
+                        onClick={()=>{ if (!isLeader || v.status!=='scheduled') onDetail(v); }}>
+                        {v.status==='cancelled'?IC.x+' ':v.status==='absence'?IC.warn+' ':''}{v.patientName}
+                      </span>
+                      {v.status==='scheduled' && <MemberBadges visit={v}/>}
+                    </div>
+                  ))}
+                  {visits.length===0&&<span style={{fontSize:'0.7em',color:'#ccc'}}>-</span>}
+                </div>
+              );
+            })}
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={{marginTop:12,fontSize:'0.78em',color:'#888'}}>
+        <span className="member-badge" style={{background:ROLE_COLORS['의사']}}>의사</span>
+        <span className="member-badge" style={{background:ROLE_COLORS['간호사']}}>간호사</span>
+        <span className="member-badge" style={{background:ROLE_COLORS['복지사']}}>복지사</span>
+        <span style={{marginLeft:8}}>{IC.x} 취소 | {IC.warn} 결원</span>
+      </div>
+      {isLeader && (
+        <div style={{fontSize:'0.75em',color:'#999',marginTop:6,lineHeight:1.6}}>
+          * <strong>진료 이동</strong>: 환자 이름을 끌어서 다른 시간대에 놓기<br/>
+          * <strong>구성원 교체</strong>: 구성원 배지를 끌어서 다른 진료 위에 놓기 (같은 역할끼리 스왑)
+        </div>
+      )}
+
+      {/* 경고/확인 다이얼로그 */}
+      {alert && (
+        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.4)',zIndex:300,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+          <div style={{background:'#fff',borderRadius:16,padding:24,maxWidth:400,width:'100%',boxShadow:'0 10px 40px rgba(0,0,0,0.2)'}}>
+            <div style={{fontSize:'0.95em',marginBottom:16,lineHeight:1.5}}>{alert.msg}</div>
+            <div style={{display:'flex',gap:8}}>
+              {alert.onConfirm && <button className="btn btn-warning btn-sm" style={{flex:1}} onClick={alert.onConfirm}>그래도 진행</button>}
+              <button className="btn btn-sm" style={{flex:1,background:'#f0f0f0',color:'#333'}} onClick={alert.onCancel || (()=>setAlert(null))}>취소</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSchedCreator && <ScheduleCreatorModal schedule={schedule} setSchedule={setSchedule} patients={patients} onClose={()=>setShowSchedCreator(false)} weekDates={weekDates}/>}
+    </div>
+  );
+}
+
+// ========== SCHEDULE CREATOR (Team Leader only) ==========
+function ScheduleCreatorModal({schedule, setSchedule, patients, onClose, weekDates: parentWeekDates}) {
+  const [selDoc, setSelDoc] = useState(DOCTORS[0]?.id||'');
+  const [selNurse, setSelNurse] = useState(NURSES[0]?.id||'');
+  const [selSW, setSelSW] = useState(SOCIAL_WORKERS[0]?.id||'');
+  const [selPatient, setSelPatient] = useState(patients[0]?.id);
+  const [slots, setSlots] = useState({}); // key: "dateStr::slotId" => true
+  const [creatorWeekOffset, setCreatorWeekOffset] = useState(0); // 0~3 (4주)
+
+  // 자체 주간 날짜 계산 (현재 주 기준 + offset)
+  const creatorMonday = getMonday(new Date());
+  creatorMonday.setDate(creatorMonday.getDate() + creatorWeekOffset * 7);
+  const creatorWeekDates = Array.from({length:5},(_,i)=>{const d=new Date(creatorMonday);d.setDate(creatorMonday.getDate()+i);return d;});
+
+  const toggleSlot = (dateStr, slotId) => {
+    const key = `${dateStr}::${slotId}`;
+    setSlots(prev => {
+      const n = {...prev};
+      if (n[key]) delete n[key]; else n[key] = true;
+      return n;
+    });
+  };
+
+  const getConflicts = (dateStr, slotId) => {
+    const members = [selDoc, selNurse, selSW];
+    const existing = Object.values(schedule[dateStr]||{});
+    return members.filter(mid =>
+      existing.some(v => v.slotId === slotId && v.status !== 'cancelled' && (v.doctorId===mid||v.nurseId===mid||v.swId===mid))
+    ).map(mid => getStaff(mid)?.name);
+  };
+
+  // 선택된 슬롯 개수 표시
+  const selectedCount = Object.keys(slots).length;
+
+  const handleCreate = () => {
+    if (selectedCount === 0) { alert('시간대를 선택해주세요.'); return; }
+    const p = patients.find(pt => pt.id === Number(selPatient));
+    const newSched = JSON.parse(JSON.stringify(schedule));
+    Object.keys(slots).forEach(key => {
+      const parts = key.split('::');
+      const dateStr = parts[0];
+      const slotId = parts[1];
+      const vKey = `${dateStr}_${slotId}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+      if (!newSched[dateStr]) newSched[dateStr] = {};
+      newSched[dateStr][vKey] = {
+        id:vKey, date:dateStr, slotId, slotLabel:TIME_SLOTS.find(s=>s.id===slotId)?.label||'',
+        patientId:p?.id, patientName:p?.name||'미정',
+        doctorId:selDoc, nurseId:selNurse, swId:selSW,
+        status:'scheduled', absentMemberId:null,
+        colorIdx: Math.floor(Math.random()*VISIT_COLORS.length)
+      };
+    });
+    setSchedule(newSched);
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <h3>{IC.calendar} 새 스케줄 생성</h3>
+
+        <div style={{background:'#f8f9ff',borderRadius:12,padding:12,marginBottom:16}}>
+          <div style={{fontWeight:600,fontSize:'0.9em',marginBottom:8}}>조 편성 (구성원 선택)</div>
+          <div className="form-group" style={{marginBottom:8}}>
+            <label style={{fontSize:'0.82em'}}><span className="member-badge" style={{background:ROLE_COLORS['의사']}}>의사</span></label>
+            <select className="form-input" value={selDoc} onChange={e=>setSelDoc(e.target.value)}>
+              {DOCTORS.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
+          <div className="form-group" style={{marginBottom:8}}>
+            <label style={{fontSize:'0.82em'}}><span className="member-badge" style={{background:ROLE_COLORS['간호사']}}>간호사</span></label>
+            <select className="form-input" value={selNurse} onChange={e=>setSelNurse(e.target.value)}>
+              {NURSES.map(n=><option key={n.id} value={n.id}>{n.name}</option>)}
+            </select>
+          </div>
+          <div className="form-group" style={{marginBottom:0}}>
+            <label style={{fontSize:'0.82em'}}><span className="member-badge" style={{background:ROLE_COLORS['복지사']}}>복지사</span></label>
+            <select className="form-input" value={selSW} onChange={e=>setSelSW(e.target.value)}>
+              {SOCIAL_WORKERS.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>환자</label>
+          <select className="form-input" value={selPatient} onChange={e=>setSelPatient(e.target.value)}>
+            {patients.map(p=><option key={p.id} value={p.id}>{p.name} - {p.address.substring(0,25)}</option>)}
+          </select>
+        </div>
+
+        <div style={{fontSize:'0.85em',color:'#888',marginBottom:8}}>시간대를 클릭하여 선택 (복수 가능, 여러 주에 걸쳐 선택 가능):</div>
+
+        {/* 주간 이동 (4주) */}
+        <div className="week-nav" style={{marginBottom:8}}>
+          <button onClick={()=>setCreatorWeekOffset(Math.max(0, creatorWeekOffset-1))} disabled={creatorWeekOffset===0}
+            style={{opacity:creatorWeekOffset===0?0.3:1}}>{IC.left} 이전주</button>
+          <span style={{fontSize:'0.85em'}}>
+            {formatDate(creatorWeekDates[0])} ~ {formatDate(creatorWeekDates[4])}
+            <span style={{color:'#667eea',marginLeft:6,fontSize:'0.85em'}}>({creatorWeekOffset===0?'이번 주':`${creatorWeekOffset+1}주차`})</span>
+          </span>
+          <button onClick={()=>setCreatorWeekOffset(Math.min(3, creatorWeekOffset+1))} disabled={creatorWeekOffset===3}
+            style={{opacity:creatorWeekOffset===3?0.3:1}}>다음주 {IC.right}</button>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'70px repeat(5,1fr)',gap:2,fontSize:'0.75em'}}>
+          <div></div>
+          {creatorWeekDates.map((d,i)=><div key={i} style={{textAlign:'center',fontWeight:600}}>{DAYS[i]} {d.getMonth()+1}/{d.getDate()}</div>)}
+          {TIME_SLOTS.map(slot=>(
+            <React.Fragment key={slot.id}>
+              <div style={{fontSize:'0.68em',display:'flex',alignItems:'center',justifyContent:'center',textAlign:'center'}}>{slot.short}</div>
+              {creatorWeekDates.map((d,i)=>{
+                const dateStr=formatDate(d);
+                const key=`${dateStr}::${slot.id}`;
+                const isSel=!!slots[key];
+                const conflicts=getConflicts(dateStr,slot.id);
+                return (
+                  <div key={i} onClick={()=>toggleSlot(dateStr,slot.id)}
+                    style={{padding:4,border:`2px solid ${isSel?'#667eea':'#eee'}`,borderRadius:6,cursor:'pointer',background:isSel?'#eef0ff':'#fff',textAlign:'center',fontSize:'0.85em'}}>
+                    {isSel?IC.ok:IC.plus}
+                    {conflicts.length>0 && <div className="conflict-warn">{IC.warn}{conflicts.join(',')}</div>}
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+
+        {selectedCount > 0 && (
+          <div style={{marginTop:8,fontSize:'0.82em',color:'#667eea',fontWeight:600}}>
+            총 {selectedCount}개 시간대 선택됨
+          </div>
+        )}
+
+        <div style={{display:'flex',gap:8,marginTop:16}}>
+          <button className="btn btn-primary btn-sm" style={{flex:1}} onClick={handleCreate}>{IC.save} 생성 ({selectedCount}건)</button>
+          <button className="btn btn-sm" style={{flex:1,background:'#f0f0f0',color:'#333'}} onClick={onClose}>취소</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ========== VISIT DETAIL MODAL ==========
+function VisitDetailModal({visit, onClose, schedule, setSchedule, isLeader, patients}) {
+  // Use live data from schedule, not stale visit prop
+  const liveVisit = schedule[visit.date]?.[visit.id] || visit;
+  const patient = patients.find(p=>p.id===liveVisit.patientId);
+  const doc = getStaff(liveVisit.doctorId);
+  const nurse = getStaff(liveVisit.nurseId);
+  const sw = getStaff(liveVisit.swId);
+  const members = [
+    {staff:doc, role:'의사', color:ROLE_COLORS['의사']},
+    {staff:nurse, role:'간호사', color:ROLE_COLORS['간호사']},
+    {staff:sw, role:'복지사', color:ROLE_COLORS['복지사']}
+  ].filter(m=>m.staff);
+
+  const [confirmAction, setConfirmAction] = useState(null); // 'cancel' | {type:'absence', memberId} | 'restore'
+  const [showReplace, setShowReplace] = useState(null);
+
+  const doCancel = () => {
+    const s = JSON.parse(JSON.stringify(schedule));
+    if (s[visit.date] && s[visit.date][visit.id]) {
+      s[visit.date][visit.id].status = 'cancelled';
+      setSchedule(s);
+    }
+    setConfirmAction(null);
+  };
+
+  const doAbsence = (memberId) => {
+    const s = JSON.parse(JSON.stringify(schedule));
+    if (s[visit.date] && s[visit.date][visit.id]) {
+      s[visit.date][visit.id].status = 'absence';
+      s[visit.date][visit.id].absentMemberId = memberId;
+      setSchedule(s);
+    }
+    setConfirmAction(null);
+    setShowReplace(memberId);
+  };
+
+  const doRestore = () => {
+    const s = JSON.parse(JSON.stringify(schedule));
+    if (s[visit.date] && s[visit.date][visit.id]) {
+      s[visit.date][visit.id].status = 'scheduled';
+      s[visit.date][visit.id].absentMemberId = null;
+      setSchedule(s);
+    }
+    setConfirmAction(null);
+    setShowReplace(null);
+  };
+
+  const handleReplace = (oldMemberId, newMemberId) => {
+    const s = JSON.parse(JSON.stringify(schedule));
+    const v = s[visit.date] && s[visit.date][visit.id];
+    if (!v) return;
+    if (v.doctorId === oldMemberId) v.doctorId = newMemberId;
+    if (v.nurseId === oldMemberId) v.nurseId = newMemberId;
+    if (v.swId === oldMemberId) v.swId = newMemberId;
+    v.status = 'scheduled';
+    v.absentMemberId = null;
+    setSchedule(s);
+    setShowReplace(null);
+    onClose();
+  };
+
+  const getReplacements = (memberId) => {
+    const member = getStaff(memberId);
+    if (!member) return [];
+    const sameRole = STAFF.filter(s => s.role === member.role && s.id !== memberId);
+    return sameRole.filter(s => {
+      const busy = Object.values(schedule[visit.date]||{}).some(v =>
+        v.id !== visit.id && v.slotId === visit.slotId && v.status !== 'cancelled' &&
+        (v.doctorId===s.id||v.nurseId===s.id||v.swId===s.id)
+      );
+      return !busy;
+    });
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <h3>{IC.info} 진료 상세</h3>
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:'0.85em',color:'#888'}}>날짜 / 시간</div>
+          <div style={{fontWeight:600}}>{liveVisit.date} | {liveVisit.slotLabel}</div>
+        </div>
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:'0.85em',color:'#888'}}>환자</div>
+          <div style={{fontWeight:600}}>{liveVisit.patientName}</div>
+          {patient && <div style={{fontSize:'0.85em',color:'#999'}}>{patient.address}</div>}
+        </div>
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:'0.85em',color:'#888',marginBottom:6}}>배정된 조 구성원</div>
+          {members.map(({staff,role,color})=>(
+            <div key={staff.id} style={{display:'flex',alignItems:'center',padding:'6px 0',borderBottom:'1px solid #f5f5f5'}}>
+              <span className="member-badge" style={{background:color,padding:'4px 12px',fontSize:'0.82em'}}>{role}</span>
+              <span style={{marginLeft:8,fontWeight:600,fontSize:'0.9em'}}>{staff.name}</span>
+              {liveVisit.absentMemberId === staff.id && <span style={{marginLeft:8,color:'#ffa502',fontSize:'0.82em'}}>{IC.warn} 결원</span>}
+            </div>
+          ))}
+        </div>
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:'0.85em',color:'#888'}}>상태</div>
+          <div style={{fontWeight:600}}>
+            {liveVisit.status==='scheduled'&&<span style={{color:'#2ed573'}}>{IC.ok} 예정</span>}
+            {liveVisit.status==='cancelled'&&<span style={{color:'#ff4757'}}>{IC.x} 취소됨</span>}
+            {liveVisit.status==='absence'&&<span style={{color:'#ffa502'}}>{IC.warn} 당일결원</span>}
+          </div>
+        </div>
+
+        {/* CONFIRMATION DIALOG */}
+        {confirmAction && (
+          <div style={{background: confirmAction==='restore' ? '#f0fff4' : '#fff3f3', border: `2px solid ${confirmAction==='restore' ? '#2ed573' : '#ff4757'}`, borderRadius:12,padding:16,marginBottom:12}}>
+            <div style={{fontWeight:600,marginBottom:8,color: confirmAction==='restore' ? '#2ed573' : '#ff4757'}}>
+              {confirmAction === 'cancel' && `${IC.warn} 정말 이 진료를 취소하시겠습니까?`}
+              {confirmAction === 'restore' && `${IC.ok} 이 진료를 원래 예정 상태로 복구하시겠습니까?`}
+              {confirmAction?.type === 'absence' && `${IC.warn} ${getStaff(confirmAction.memberId)?.name}님을 당일결원 처리하시겠습니까?`}
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <button className={`btn btn-sm ${confirmAction==='restore'?'btn-success':'btn-danger'}`} style={{flex:1}} onClick={()=>{
+                if (confirmAction === 'cancel') doCancel();
+                else if (confirmAction === 'restore') doRestore();
+                else doAbsence(confirmAction.memberId);
+              }}>확인</button>
+              <button className="btn btn-sm" style={{flex:1,background:'#f0f0f0',color:'#333'}} onClick={()=>setConfirmAction(null)}>취소</button>
+            </div>
+          </div>
+        )}
+
+        {/* LEADER-ONLY: RESTORE for cancelled/absence */}
+        {isLeader && (liveVisit.status==='cancelled' || liveVisit.status==='absence') && !confirmAction && (
+          <div style={{borderTop:'1px solid #eee',paddingTop:12,marginTop:12}}>
+            <button className="btn btn-success btn-sm btn-full" onClick={()=>setConfirmAction('restore')}>
+              {IC.undo} 원상복구 (예정 상태로 되돌리기)
+            </button>
+          </div>
+        )}
+
+        {/* LEADER-ONLY CONTROLS for scheduled */}
+        {isLeader && liveVisit.status==='scheduled' && !confirmAction && (
+          <div style={{borderTop:'1px solid #eee',paddingTop:12,marginTop:12}}>
+            <div style={{fontSize:'0.85em',fontWeight:600,color:'#667eea',marginBottom:8}}>{IC.lock} 팀장 관리</div>
+            <button className="btn btn-danger btn-sm btn-full" style={{marginBottom:10}} onClick={()=>setConfirmAction('cancel')}>
+              {IC.x} 진료 취소
+            </button>
+            <div style={{fontSize:'0.82em',color:'#888',marginBottom:6}}>당일결원 처리 (결원 구성원 선택):</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+              {members.map(({staff,role,color})=>(
+                <button key={staff.id} className="btn btn-warning btn-sm" onClick={()=>setConfirmAction({type:'absence',memberId:staff.id})}>
+                  {IC.person} {staff.name}({role})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* REPLACE ABSENT MEMBER (Leader only) */}
+        {isLeader && (liveVisit.status==='absence' || showReplace) && (
+          <div style={{borderTop:'1px solid #eee',paddingTop:12,marginTop:12,background:'#fffbf0',borderRadius:12,padding:12}}>
+            <div style={{fontSize:'0.85em',fontWeight:600,color:'#ffa502',marginBottom:8}}>{IC.swap} 대체 구성원 배정</div>
+            {(() => {
+              const absentId = showReplace || liveVisit.absentMemberId;
+              const absent = getStaff(absentId);
+              const replacements = getReplacements(absentId);
+              return (
+                <div>
+                  <div style={{fontSize:'0.85em',marginBottom:8}}>
+                    <strong>{absent?.name}</strong>({absent?.roleLabel}) 결원 → 대체 가능한 {absent?.role}:
+                  </div>
+                  {replacements.length === 0 ? (
+                    <div style={{color:'#ff4757',fontSize:'0.85em'}}>해당 시간에 가용한 {absent?.role}가 없습니다.</div>
+                  ) : (
+                    <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                      {replacements.map(r=>(
+                        <button key={r.id} className="btn btn-success btn-sm" onClick={()=>handleReplace(absentId,r.id)}>
+                          {IC.plus} {r.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        <button className="btn btn-sm btn-full" onClick={onClose} style={{marginTop:12,background:'#f0f0f0',color:'#333'}}>닫기</button>
+      </div>
+    </div>
+  );
+}
+
+// ========== MY SCHEDULE ==========
+function MySchedulePage({schedule, patients, user, weekOffset, setWeekOffset, showRoute, setShowRoute}) {
+  const monday = getMonday(new Date());
+  monday.setDate(monday.getDate() + weekOffset * 7);
+  const [selDate, setSelDate] = useState(formatDate(new Date()));
+  const weekDates = Array.from({length:5},(_,i)=>{const d=new Date(monday);d.setDate(monday.getDate()+i);return d;});
+
+  // Get visits where THIS user is assigned
+  const myVisits = Object.values(schedule[selDate]||{})
+    .filter(v => {
+      if (user.role === '팀장') return true; // Leader sees all
+      return v.doctorId===user.id || v.nurseId===user.id || v.swId===user.id;
+    })
+    .filter(v => v.status !== 'cancelled')
+    .sort((a,b)=>{const o={morning:0,afternoon1:1,afternoon2:2};return o[a.slotId]-o[b.slotId];});
+
+  return (
+    <div>
+      <div className="week-nav">
+        <button onClick={()=>setWeekOffset(weekOffset-1)}>{IC.left} 이전주</button>
+        <span>{formatDate(weekDates[0])} ~ {formatDate(weekDates[4])}</span>
+        <button onClick={()=>setWeekOffset(weekOffset+1)}>다음주 {IC.right}</button>
+      </div>
+      <div className="tabs">
+        {weekDates.map((d,i)=><button key={i} className={`tab ${formatDate(d)===selDate?'active':''}`} onClick={()=>setSelDate(formatDate(d))}>{DAYS[i]} {d.getDate()}일</button>)}
+      </div>
+      <div style={{marginBottom:12,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <h3 style={{fontSize:'1em'}}>{selDate} 일정 ({myVisits.length}건)</h3>
+        {myVisits.length>0 && <button className="btn btn-primary btn-sm" onClick={()=>setShowRoute(true)}>{IC.map} 최적경로</button>}
+      </div>
+      {myVisits.length===0?(
+        <div className="card" style={{textAlign:'center',padding:32,color:'#999'}}>{IC.check}<p>예정된 진료가 없습니다.</p></div>
+      ):(
+        myVisits.map(v=>{
+          const p=patients.find(pt=>pt.id===v.patientId);
+          const doc=getStaff(v.doctorId);
+          const nurse=getStaff(v.nurseId);
+          const sw=getStaff(v.swId);
+          return (
+            <div key={v.id} className="card" style={{borderLeft:'4px solid '+VISIT_COLORS[v.colorIdx||0]}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div style={{flex:1}}>
+                  <span style={{fontSize:'0.78em',color:'#888'}}>{v.slotLabel}</span>
+                  <div style={{fontWeight:600,fontSize:'1.05em'}}>{v.patientName}</div>
+                  <div style={{fontSize:'0.82em',color:'#999'}}>{p?.address?.substring(0,40)}</div>
+                </div>
+                {v.status==='absence'&&<span className="member-badge" style={{background:'#ffa502'}}>결원</span>}
+              </div>
+              <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:4}}>
+                {doc&&<span className="member-badge" style={{background:ROLE_COLORS['의사'],padding:'3px 8px'}}>{doc.name}(의사)</span>}
+                {nurse&&<span className="member-badge" style={{background:ROLE_COLORS['간호사'],padding:'3px 8px'}}>{nurse.name}(간호사)</span>}
+                {sw&&<span className="member-badge" style={{background:ROLE_COLORS['복지사'],padding:'3px 8px'}}>{sw.name}(복지사)</span>}
+              </div>
+              {p&&<div style={{marginTop:6,fontSize:'0.8em',color:'#666'}}>{IC.heart} {p.diseases.join(', ')}</div>}
+            </div>
+          );
+        })
+      )}
+      {showRoute && <RouteMapModal visits={myVisits} patients={patients} onClose={()=>setShowRoute(false)}/>}
+    </div>
+  );
+}
+
+// ========== ROUTE MAP ==========
+function RouteMapModal({visits, patients, onClose}) {
+  const mapRef=useRef(null);
+  const mapInst=useRef(null);
+  const [routeInfo,setRouteInfo]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const visitPatients=visits.map(v=>patients.find(p=>p.id===v.patientId)).filter(Boolean);
+  const start={lat:37.4430,lng:126.8010,name:'경기도 시흥시 은행로 167번길 6 (출발)'};
+
+  useEffect(()=>{
+    if(!mapRef.current||mapInst.current)return;
+    const map=L.map(mapRef.current).setView([37.39,126.78],12);
+    mapInst.current=map;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+
+    const optimizeRoute=(pts)=>{
+      if(pts.length<=1)return pts;
+      const ord=[pts[0]];const rem=[...pts.slice(1)];
+      while(rem.length>0){const last=ord[ord.length-1];let ni=0,nd=Infinity;
+        rem.forEach((p,i)=>{const d=Math.sqrt(Math.pow(p.lat-last.lat,2)+Math.pow(p.lng-last.lng,2));if(d<nd){nd=d;ni=i;}});
+        ord.push(rem.splice(ni,1)[0]);}return ord;};
+
+    const optimized=[start,...optimizeRoute(visitPatients)];
+    const sIcon=L.divIcon({html:'<div style="background:#2ed573;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">S</div>',className:'',iconSize:[30,30],iconAnchor:[15,15]});
+    L.marker([start.lat,start.lng],{icon:sIcon}).addTo(map).bindPopup(start.name);
+    optimized.forEach((p,i)=>{if(i===0)return;
+      const icon=L.divIcon({html:`<div style="background:${COLORS[(p.id||i)%COLORS.length]};color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">${i}</div>`,className:'',iconSize:[30,30],iconAnchor:[15,15]});
+      L.marker([p.lat,p.lng],{icon}).addTo(map).bindPopup(`${i}. ${p.name}<br>${p.address?.substring(0,30)}`);});
+
+    const coords=optimized.map(p=>`${p.lng},${p.lat}`).join(';');
+    fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true`)
+      .then(r=>r.json()).then(data=>{
+        if(data.routes?.[0]){
+          const route=data.routes[0];
+          L.geoJSON(route.geometry,{style:{color:'#667eea',weight:5,opacity:0.8}}).addTo(map);
+          setRouteInfo({distance:(route.distance/1000).toFixed(1),time:Math.ceil(route.duration/60),stops:optimized});
+          map.fitBounds(L.geoJSON(route.geometry).getBounds(),{padding:[30,30]});
+        }setLoading(false);
+      }).catch(()=>{
+        const ll=optimized.map(p=>[p.lat,p.lng]);
+        L.polyline(ll,{color:'#667eea',weight:3,dashArray:'10,6'}).addTo(map);
+        map.fitBounds(L.latLngBounds(ll),{padding:[30,30]});
+        setRouteInfo({distance:'계산불가',time:'계산불가',stops:optimized});setLoading(false);});
+
+    return()=>{map.remove();mapInst.current=null;};
+  },[]);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{maxWidth:600,maxHeight:'95vh'}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+          <h3>{IC.map} 최적 이동경로</h3>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:'1.5em',cursor:'pointer',color:'#999'}}>×</button>
+        </div>
+        {loading&&<div style={{textAlign:'center',padding:20,color:'#667eea'}}>{IC.wait} 경로 계산 중...</div>}
+        <div id="map" ref={mapRef}></div>
+        {routeInfo&&(
+          <div className="route-info">
+            <div style={{display:'flex',gap:16,marginBottom:12}}>
+              <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'0.8em',color:'#888'}}>총 거리</div><div style={{fontWeight:700,color:'#667eea',fontSize:'1.1em'}}>{routeInfo.distance} km</div></div>
+              <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'0.8em',color:'#888'}}>예상 소요</div><div style={{fontWeight:700,color:'#e17055',fontSize:'1.1em'}}>{routeInfo.time} 분</div></div>
+              <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'0.8em',color:'#888'}}>방문 수</div><div style={{fontWeight:700,color:'#2ed573',fontSize:'1.1em'}}>{routeInfo.stops.length-1} 곳</div></div>
+            </div>
+            <div style={{fontSize:'0.85em',fontWeight:600,marginBottom:6}}>방문 순서</div>
+            {routeInfo.stops.map((s,i)=>(
+              <div key={i} className="route-stop">
+                <div className="route-num" style={{background:i===0?'#2ed573':COLORS[(s.id||i)%COLORS.length]}}>{i===0?'S':i}</div>
+                <div><div style={{fontWeight:600,fontSize:'0.9em'}}>{s.name}</div>{s.address&&<div style={{fontSize:'0.78em',color:'#999'}}>{s.address?.substring(0,35)}</div>}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ========== CHAT ==========
+function ChatPage(props) {
+  var chatTarget = props.chatTarget;
+  var setChatTarget = props.setChatTarget;
+  var chats = props.chats;
+  var setChats = props.setChats;
+  var patients = props.patients;
+
+  if(!chatTarget){
+    var chatList = [];
+    for(var pi=0; pi<patients.length; pi++){
+      var p = patients[pi];
+      chatList.push(
+        React.createElement('div', {key:String(p.id)},
+          React.createElement('div', {className:'patient-item',onClick:(function(pp){return function(){setChatTarget({type:'guardian',patientId:pp.id,name:pp.guardianName});};})(p)},
+            React.createElement('div', {className:'patient-avatar',style:{background:'#667eea',width:36,height:36,fontSize:'0.8em'}}, '[G]'),
+            React.createElement('div', {className:'patient-info'},
+              React.createElement('div', {className:'patient-name'}, String(p.name)+' - 보호자'),
+              React.createElement('div', {className:'patient-sub'}, String(p.guardianName)+' | '+String(p.guardian))
+            )
+          ),
+          React.createElement('div', {className:'patient-item',onClick:(function(pp){return function(){setChatTarget({type:'caregiver',patientId:pp.id,name:pp.caregiverName});};})(p)},
+            React.createElement('div', {className:'patient-avatar',style:{background:'#e17055',width:36,height:36,fontSize:'0.8em'}}, '[N]'),
+            React.createElement('div', {className:'patient-info'},
+              React.createElement('div', {className:'patient-name'}, String(p.name)+' - 요양보호사'),
+              React.createElement('div', {className:'patient-sub'}, String(p.caregiverName)+' | '+String(p.caregiver))
+            )
+          )
+        )
+      );
+    }
+    return React.createElement('div', null,
+      React.createElement('h3', {style:{marginBottom:12,fontSize:'1em'}}, '채팅 목록'),
+      React.createElement('div', null, chatList)
+    );
+  }
+
+  var msgState = React.useState('');
+  var msg = msgState[0];
+  var setMsg = msgState[1];
+  var endRef = React.useRef(null);
+
+  var key = String(chatTarget.type)+'_'+String(chatTarget.patientId);
+  var messages = chats[key]||[];
+
+  var send = function(){
+    if(!msg.trim())return;
+    var m={id:Date.now(),from:'me',text:msg,time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})};
+    var capturedKey = key;
+    setChats(function(prev){var n={};for(var k in prev){n[k]=prev[k];}n[capturedKey]=(prev[capturedKey]||[]).concat([m]);return n;});
+    setMsg('');
+    setTimeout(function(){
+      var r={id:Date.now()+1,from:'other',text:'네, 확인했습니다.',time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})};
+      setChats(function(prev){var n={};for(var k in prev){n[k]=prev[k];}n[capturedKey]=(prev[capturedKey]||[]).concat([r]);return n;});
+    },1000);
+  };
+
+  React.useEffect(function(){if(endRef.current){endRef.current.scrollIntoView({behavior:'smooth'});}},[messages]);
+
+  var patient = null;
+  for(var fi=0;fi<patients.length;fi++){if(patients[fi].id===chatTarget.patientId){patient=patients[fi];break;}}
+
+  var msgEls = [];
+  for(var mi=0;mi<messages.length;mi++){
+    var mm = messages[mi];
+    msgEls.push(
+      React.createElement('div', {key:String(mm.id), className:'chat-bubble '+(mm.from==='me'?'sent':'received')},
+        React.createElement('div', null, String(mm.text)),
+        React.createElement('div', {style:{fontSize:'0.7em',opacity:0.7,marginTop:4,textAlign:'right'}}, String(mm.time))
+      )
+    );
+  }
+
+  var headerEl = React.createElement('div', {style:{display:'flex',alignItems:'center',padding:'10px 4px',borderBottom:'2px solid #eee',marginBottom:8,background:'#f8f9fa',borderRadius:'10px 10px 0 0'}},
+    React.createElement('button', {style:{background:'#667eea',color:'#fff',border:'none',fontSize:'1em',cursor:'pointer',marginRight:12,borderRadius:8,padding:'6px 14px',fontWeight:700},onClick:function(){setChatTarget(null);}}, IC.back + ' 목록'),
+    React.createElement('div', {style:{flex:1}},
+      React.createElement('div', {style:{fontWeight:700,fontSize:'1em'}}, String(chatTarget.name)),
+      React.createElement('div', {style:{fontSize:'0.78em',color:'#888'}}, (patient?String(patient.name):'')+' '+(chatTarget.type==='guardian'?'보호자':'요양보호사'))
+    )
+  );
+
+  var messagesEl = React.createElement('div', {className:'chat-messages'},
+    msgEls,
+    React.createElement('div', {ref:endRef})
+  );
+
+  var inputEl = React.createElement('div', {className:'chat-input-area'},
+    React.createElement('input', {value:msg,onChange:function(e){setMsg(e.target.value);},placeholder:'메시지를 입력하세요...',onKeyDown:function(e){if(e.key==='Enter'){send();}}}),
+    React.createElement('button', {onClick:send}, '전송')
+  );
+
+  return React.createElement('div', {className:'chat-container'}, headerEl, messagesEl, inputEl);
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<ErrorBoundary><App/></ErrorBoundary>);
+</script>
+</body>
+</html>
