@@ -296,7 +296,21 @@ function App() {
   const [showSchedCreator, setShowSchedCreator] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [chatTarget, setChatTarget] = useState(null);
-  const [chats, setChats] = useState(() => loadData('chats', DEMO_CHATS));
+  const [chats, setChats] = useState(() => {
+    // 데모 채팅 데이터가 남아있으면 삭제
+    try {
+      const saved = localStorage.getItem('homecare_chats');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const firstKey = Object.keys(parsed)[0];
+        if (firstKey && parsed[firstKey] && parsed[firstKey][0] && parsed[firstKey][0].text && parsed[firstKey][0].text.indexOf('입니다.') >= 0 && parsed[firstKey][0].id === 1) {
+          localStorage.removeItem('homecare_chats');
+          return {};
+        }
+      }
+    } catch(e){}
+    return loadData('chats', DEMO_CHATS);
+  });
   const [showRoute, setShowRoute] = useState(false);
   const [detailVisit, setDetailVisit] = useState(null);
   const [dragItem, setDragItem] = useState(null);
