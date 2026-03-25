@@ -80,6 +80,7 @@ textarea.form-input{min-height:80px;resize:vertical}
 .chat-bubble.sent{background:#667eea;color:#fff;margin-left:auto;border-bottom-right-radius:4px}
 .chat-bubble.sent-external{background:#2DB400;color:#fff;margin-left:auto;border-bottom-right-radius:4px}
 .chat-bubble.received{background:#f0f0f0;border-bottom-left-radius:4px}
+.chat-bubble.received-external{background:#e8f5e9;color:#333;border-bottom-left-radius:4px}
 .chat-input-area{display:flex;gap:8px;padding:12px;border-top:1px solid #eee;background:#fff}
 .chat-input-area input{flex:1;padding:10px 14px;border:2px solid #e8e8e8;border-radius:20px;outline:none}
 .chat-input-area button{width:40px;height:40px;border-radius:50%;border:none;background:#667eea;color:#fff;cursor:pointer}
@@ -1480,9 +1481,10 @@ function ChatPage(props) {
     if(!msg.trim())return;
     var now = new Date();
     var timeStr = now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    var sender = isExternal ? 'external' : 'staff';
     var messageData = {
       chat_key: chatKey,
-      from_user: 'me',
+      from_user: sender,
       text: msg,
       time: timeStr
     };
@@ -1491,7 +1493,7 @@ function ChatPage(props) {
     supabase.from('chat_messages').insert(messageData).then(function(){});
 
     // Also update local chats state for localStorage backup
-    var localMsg = {id: Date.now(), from: 'me', text: msg, time: timeStr};
+    var localMsg = {id: Date.now(), from: sender, text: msg, time: timeStr};
     setChats(function(prev){
       var n = {};
       for(var k in prev){ n[k] = prev[k]; }
@@ -1509,7 +1511,14 @@ function ChatPage(props) {
   for(var mi=0;mi<messages.length;mi++){
     var mm = messages[mi];
     msgEls.push(
-      React.createElement('div', {key:String(mm.id), className:'chat-bubble '+(mm.from==='me'?(isExternal?'sent-external':'sent'):'received')},
+      React.createElement('div', {key:String(mm.id), className:'chat-bubble '+(function(){
+        var f = mm.from;
+        if (isExternal) {
+          return (f==='external'||f==='me') ? 'sent-external' : 'received';
+        } else {
+          return (f==='staff'||f==='me') ? 'sent' : 'received-external';
+        }
+      })()},
         React.createElement('div', null, String(mm.text)),
         React.createElement('div', {style:{fontSize:'0.7em',opacity:0.7,marginTop:4,textAlign:'right'}}, String(mm.time))
       )
