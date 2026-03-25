@@ -475,8 +475,10 @@ function PatientPage({patients, setPatients, selPatient, setSelPatient, showRegF
   );
 }
 
-function PatientDetail({patient: p, onBack, onChat, patients, setPatients}) {
+function PatientDetail({patient: initialP, onBack, onChat, patients, setPatients}) {
   const [editing, setEditing] = useState(false);
+  // 항상 최신 환자 데이터 참조
+  const p = patients.find(pt => pt.id === initialP.id) || initialP;
   const [editForm, setEditForm] = useState({...p});
 
   const toggleEdit = (f, item) => { const a = editForm[f]; setEditForm({...editForm,[f]:a.includes(item)?a.filter(x=>x!==item):[...a,item]}); };
@@ -1507,22 +1509,65 @@ function ChatPage(props) {
   var patient = null;
   for(var fi=0;fi<patients.length;fi++){if(patients[fi].id===chatTarget.patientId){patient=patients[fi];break;}}
 
+  var editingMsgState = React.useState(null);
+  var editingMsg = editingMsgState[0];
+  var setEditingMsg = editingMsgState[1];
+  var editTextState = React.useState('');
+  var editText = editTextState[0];
+  var setEditText = editTextState[1];
+
+  var deleteMsg = function(msgId){
+    if(!confirm('이 메시지를 삭제하시겠습니까?')) return;
+    supabase.from('chat_messages').delete().eq('id', msgId).then(function(){});
+    setMessages(function(prev){ return prev.filter(function(m){ return m.id !== msgId; }); });
+  };
+
+  var startEditMsg = function(msgId, text){
+    setEditingMsg(msgId);
+    setEditText(text);
+  };
+
+  var saveEditMsg = function(){
+    if(!editText.trim()) return;
+    supabase.from('chat_messages').update({text: editText}).eq('id', editingMsg).then(function(){});
+    setMessages(function(prev){ return prev.map(function(m){ return m.id === editingMsg ? Object.assign({}, m, {text: editText}) : m; }); });
+    setEditingMsg(null);
+  };
+
   var msgEls = [];
   for(var mi=0;mi<messages.length;mi++){
     var mm = messages[mi];
-    msgEls.push(
-      React.createElement('div', {key:String(mm.id), className:'chat-bubble '+(function(){
-        var f = mm.from;
-        if (isExternal) {
-          return f==='external' ? 'sent-external' : 'received';
-        } else {
-          return (f==='staff'||f==='me') ? 'sent' : 'received-external';
-        }
-      })()},
-        React.createElement('div', null, String(mm.text)),
-        React.createElement('div', {style:{fontSize:'0.7em',opacity:0.7,marginTop:4,textAlign:'right'}}, String(mm.time))
-      )
-    );
+    var bubbleClass = (function(){
+      var f = mm.from;
+      if (isExternal) { return f==='external' ? 'sent-external' : 'received'; }
+      else { return (f==='staff'||f==='me') ? 'sent' : 'received-external'; }
+    })();
+    var isMyMsg = isExternal ? mm.from==='external' : (mm.from==='staff'||mm.from==='me');
+
+    if (editingMsg === mm.id) {
+      msgEls.push(
+        React.createElement('div', {key:String(mm.id), className:'chat-bubble '+bubbleClass, style:{position:'relative'}},
+          React.createElement('input', {value:editText, onChange:function(e){setEditText(e.target.value);}, onKeyDown:function(e){if(e.key==='Enter')saveEditMsg();}, style:{width:'100%',padding:'6px 8px',border:'1px solid rgba(255,255,255,0.5)',borderRadius:6,background:'rgba(255,255,255,0.2)',color:'inherit',fontSize:'0.9em'}, autoFocus:true}),
+          React.createElement('div', {style:{display:'flex',gap:6,marginTop:6,justifyContent:'flex-end'}},
+            React.createElement('span', {style:{fontSize:'0.75em',cursor:'pointer',padding:'2px 8px',borderRadius:4,background:'rgba(255,255,255,0.3)'},onClick:saveEditMsg}, 'V'),
+            React.createElement('span', {style:{fontSize:'0.75em',cursor:'pointer',padding:'2px 8px',borderRadius:4,background:'rgba(0,0,0,0.2)'},onClick:function(){setEditingMsg(null);}}, 'X')
+          )
+        )
+      );
+    } else {
+      msgEls.push(
+        React.createElement('div', {key:String(mm.id), className:'chat-bubble '+bubbleClass, style:{position:'relative'}},
+          React.createElement('div', null, String(mm.text)),
+          React.createElement('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}},
+            isMyMsg ? React.createElement('span', {style:{display:'flex',gap:4}},
+              React.createElement('span', {style:{fontSize:'0.65em',color:'rgba(255,255,255,0.6)',cursor:'pointer',padding:'1px 5px',borderRadius:4,background:'rgba(0,0,0,0.15)'}, onClick:(function(id,txt){return function(){startEditMsg(id,txt);};})(mm.id,mm.text)}, '\u270E'),
+              React.createElement('span', {style:{fontSize:'0.65em',color:'rgba(255,255,255,0.6)',cursor:'pointer',padding:'1px 5px',borderRadius:4,background:'rgba(0,0,0,0.15)'}, onClick:(function(id){return function(){deleteMsg(id);};})(mm.id)}, 'X')
+            ) : React.createElement('span', null),
+            React.createElement('span', {style:{fontSize:'0.7em',opacity:0.7}}, String(mm.time))
+          )
+        )
+      );
+    }
   }
 
   // 환자 정보에서 최신 이름 가져오기
