@@ -1514,7 +1514,7 @@ function ChatPage(props) {
       React.createElement('div', {key:String(mm.id), className:'chat-bubble '+(function(){
         var f = mm.from;
         if (isExternal) {
-          return (f==='external'||f==='me') ? 'sent-external' : 'received';
+          return f==='external' ? 'sent-external' : 'received';
         } else {
           return (f==='staff'||f==='me') ? 'sent' : 'received-external';
         }
