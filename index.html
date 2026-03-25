@@ -1466,11 +1466,24 @@ function ChatPage(props) {
         }
       });
 
-    // Subscribe to real-time inserts
+    // Subscribe to real-time changes (INSERT, UPDATE, DELETE)
     var channel = supabase.channel('chat_'+chatKey)
       .on('postgres_changes', {event:'INSERT', schema:'public', table:'chat_messages', filter:'chat_key=eq.'+chatKey}, function(payload){
         var d = payload.new;
-        setMessages(function(prev){ return prev.concat([{id:d.id, from:d.from_user, text:d.text, time:d.time}]); });
+        var newMsg = {id:d.id, from:d.from_user, text:d.text, time:d.time};
+        setMessages(function(prev){
+          // 중복 방지
+          for(var i=0;i<prev.length;i++){if(prev[i].id===d.id)return prev;}
+          return prev.concat([newMsg]);
+        });
+      })
+      .on('postgres_changes', {event:'UPDATE', schema:'public', table:'chat_messages', filter:'chat_key=eq.'+chatKey}, function(payload){
+        var d = payload.new;
+        setMessages(function(prev){ return prev.map(function(m){ return m.id===d.id ? {id:d.id, from:d.from_user, text:d.text, time:d.time} : m; }); });
+      })
+      .on('postgres_changes', {event:'DELETE', schema:'public', table:'chat_messages', filter:'chat_key=eq.'+chatKey}, function(payload){
+        var d = payload.old;
+        setMessages(function(prev){ return prev.filter(function(m){ return m.id!==d.id; }); });
       })
       .subscribe();
 
@@ -1491,8 +1504,23 @@ function ChatPage(props) {
       time: timeStr
     };
 
-    // Write to Supabase (will trigger real-time subscription)
-    supabase.from('chat_messages').insert(messageData).then(function(){});
+    // Write to Supabase (real-time subscription will add to messages)
+    supabase.from('chat_messages').insert(messageData).select().then(function(res){
+      if(res.data && res.data[0]){
+        var d = res.data[0];
+        setMessages(function(prev){
+          // 임시 메시지를 실제 메시지로 교체
+          var filtered = prev.filter(function(m){ return m.id !== 'temp_'+timeStr; });
+          // 중복 방지
+          for(var i=0;i<filtered.length;i++){if(filtered[i].id===d.id)return filtered;}
+          return filtered.concat([{id:d.id, from:d.from_user, text:d.text, time:d.time}]);
+        });
+      }
+    });
+
+    // 즉시 화면에 임시 표시
+    var tempId = 'temp_'+timeStr;
+    setMessages(function(prev){ return prev.concat([{id:tempId, from:sender, text:msg, time:timeStr}]); });
 
     // Also update local chats state for localStorage backup
     var localMsg = {id: Date.now(), from: sender, text: msg, time: timeStr};
