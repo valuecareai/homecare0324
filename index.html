@@ -371,7 +371,7 @@ function App() {
           <div><h2>재택진료 채팅</h2><span style={{fontSize:'0.75em',opacity:0.8}}>{externalChat.name}</span></div>
         </div>
         <div className="content" style={{paddingBottom:0}}>
-          <ChatPage chatTarget={externalChat} setChatTarget={()=>{}} chats={chats} setChats={setChats} patients={patients}/>
+          <ChatPage chatTarget={externalChat} setChatTarget={()=>{}} chats={chats} setChats={setChats} patients={patients} isExternal={true}/>
         </div>
       </div>
     );
@@ -1403,6 +1403,7 @@ function ChatPage(props) {
   var chats = props.chats;
   var setChats = props.setChats;
   var patients = props.patients;
+  var isExternal = props.isExternal || false;
 
   if(!chatTarget){
     var chatList = [];
@@ -1510,10 +1511,16 @@ function ChatPage(props) {
     );
   }
 
+  // 환자 정보에서 최신 이름 가져오기
+  var displayName = chatTarget.name;
+  if (patient) {
+    displayName = chatTarget.type === 'guardian' ? patient.guardianName : patient.caregiverName;
+  }
+
   var headerEl = React.createElement('div', {style:{display:'flex',alignItems:'center',padding:'10px 4px',borderBottom:'2px solid #eee',marginBottom:8,background:'#f8f9fa',borderRadius:'10px 10px 0 0'}},
-    React.createElement('button', {style:{background:'#667eea',color:'#fff',border:'none',fontSize:'1em',cursor:'pointer',marginRight:12,borderRadius:8,padding:'6px 14px',fontWeight:700},onClick:function(){setChatTarget(null);}}, IC.back + ' 목록'),
+    !isExternal && React.createElement('button', {style:{background:'#667eea',color:'#fff',border:'none',fontSize:'1em',cursor:'pointer',marginRight:12,borderRadius:8,padding:'6px 14px',fontWeight:700},onClick:function(){setChatTarget(null);}}, IC.back + ' 목록'),
     React.createElement('div', {style:{flex:1}},
-      React.createElement('div', {style:{fontWeight:700,fontSize:'1em'}}, String(chatTarget.name)),
+      React.createElement('div', {style:{fontWeight:700,fontSize:'1em'}}, String(displayName)),
       React.createElement('div', {style:{fontSize:'0.78em',color:'#888'}}, (patient?String(patient.name):'')+' '+(chatTarget.type==='guardian'?'보호자':'요양보호사'))
     )
   );
