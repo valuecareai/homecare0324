@@ -12,6 +12,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f0f2f5;color:#333}
@@ -99,6 +100,11 @@ textarea.form-input{min-height:80px;resize:vertical}
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// Supabase init
+const SUPABASE_URL = 'https://sbpwntaocsdwqluewxjg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNicHdudGFvY3Nkd3FsdWV3eGpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDg3OTQsImV4cCI6MjA5MDAyNDc5NH0.aNz25SzIvlWZmNjGeyfkPzRC2x_d7VQOPdPC2q_9VLU';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Error Boundary for debugging
 class ErrorBoundary extends React.Component {
@@ -259,7 +265,24 @@ DEMO_PATIENTS.forEach(p => {
   ];
 });
 
-// ========== localStorage 헬퍼 ==========
+// ========== Supabase 헬퍼 ==========
+async function loadDataFromSupabase(key, fallback) {
+  try {
+    const { data, error } = await supabase.from('homecare_data').select('value').eq('key', key).maybeSingle();
+    if (!error && data) return data.value;
+    if (error) console.log('Supabase load error for', key, ':', error.message);
+  } catch(e) { console.log('Supabase load error:', e); }
+  return typeof fallback === 'function' ? fallback() : fallback;
+}
+
+async function saveDataToSupabase(key, value) {
+  try {
+    const { error } = await supabase.from('homecare_data').upsert({ key: key, value: value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    if (error) console.log('Supabase save error for', key, ':', error.message);
+  } catch(e) { console.log('Supabase save error:', e); }
+}
+
+// Keep localStorage as fallback for offline
 function loadData(key, fallback) {
   try {
     const saved = localStorage.getItem('homecare_' + key);
@@ -269,6 +292,7 @@ function loadData(key, fallback) {
 }
 function saveData(key, value) {
   try { localStorage.setItem('homecare_' + key, JSON.stringify(value)); } catch(e) {}
+  saveDataToSupabase(key, value);
 }
 
 // ========== APP ==========
@@ -287,12 +311,71 @@ function App() {
   const [detailVisit, setDetailVisit] = useState(null);
   const [dragItem, setDragItem] = useState(null);
 
+  const [dbLoaded, setDbLoaded] = useState(false);
+
+  useEffect(() => {
+    async function loadFromSupabase() {
+      try {
+        const [pData, sData, cData] = await Promise.all([
+          loadDataFromSupabase('patients', null),
+          loadDataFromSupabase('schedule', null),
+          loadDataFromSupabase('chats', null)
+        ]);
+        if (pData) setPatients(pData);
+        if (sData) setSchedule(sData);
+        if (cData) setChats(cData);
+        setDbLoaded(true);
+      } catch(e) {
+        console.log('Supabase initial load error:', e);
+        setDbLoaded(true);
+      }
+    }
+    loadFromSupabase();
+  }, []);
+
   // 데이터 변경 시 자동 저장
-  useEffect(() => { saveData('patients', patients); }, [patients]);
-  useEffect(() => { saveData('schedule', schedule); }, [schedule]);
-  useEffect(() => { saveData('chats', chats); }, [chats]);
+  useEffect(() => { if (dbLoaded) saveData('patients', patients); }, [patients, dbLoaded]);
+  useEffect(() => { if (dbLoaded) saveData('schedule', schedule); }, [schedule, dbLoaded]);
+  useEffect(() => { if (dbLoaded) saveData('chats', chats); }, [chats, dbLoaded]);
 
   const isLeader = user?.role === '팀장';
+
+  // Check for chat link parameter (external access)
+  const [chatParam] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('chat') || null;
+  });
+
+  const externalChat = useMemo(() => {
+    if (!chatParam) return null;
+    const parts = chatParam.split('_');
+    if (parts.length >= 2) {
+      const type = parts[0];
+      const patientId = parseInt(parts.slice(1).join('_'));
+      const patient = patients.find(p => p.id === patientId);
+      if (patient) {
+        const name = type === 'guardian' ? patient.guardianName : patient.caregiverName;
+        return { type, patientId, name };
+      }
+    }
+    return null;
+  }, [chatParam, patients]);
+
+  if (chatParam) {
+    if (!externalChat) {
+      return (<div className="app"><div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:'linear-gradient(135deg,#667eea,#764ba2)',color:'#fff',fontSize:'1.2em'}}>채팅방 로딩 중...</div></div>);
+    }
+    return (
+      <div className="app">
+        <div className="header">
+          <div><h2>재택진료 채팅</h2><span style={{fontSize:'0.75em',opacity:0.8}}>{externalChat.name}</span></div>
+        </div>
+        <div className="content" style={{paddingBottom:0}}>
+          <ChatPage chatTarget={externalChat} setChatTarget={()=>{}} chats={chats} setChats={setChats} patients={patients}/>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) return <LoginScreen onLogin={setUser}/>;
 
@@ -364,7 +447,7 @@ function PatientPage({patients, setPatients, selPatient, setSelPatient, showRegF
   const [search, setSearch] = useState('');
   const filtered = patients.filter(p => p.name.includes(search) || p.address.includes(search));
   if (showRegForm) return <PatientForm patients={patients} setPatients={setPatients} onClose={()=>setShowRegForm(false)}/>;
-  if (selPatient) return <PatientDetail patient={selPatient} onBack={()=>setSelPatient(null)} onChat={onChat}/>;
+  if (selPatient) return <PatientDetail patient={selPatient} onBack={()=>setSelPatient(null)} onChat={onChat} patients={patients} setPatients={setPatients}/>;
   return (
     <div>
       <div style={{display:'flex',gap:8,marginBottom:16,alignItems:'center'}}>
@@ -386,10 +469,86 @@ function PatientPage({patients, setPatients, selPatient, setSelPatient, showRegF
   );
 }
 
-function PatientDetail({patient: p, onBack, onChat}) {
+function PatientDetail({patient: p, onBack, onChat, patients, setPatients}) {
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({...p});
+
+  const toggleEdit = (f, item) => { const a = editForm[f]; setEditForm({...editForm,[f]:a.includes(item)?a.filter(x=>x!==item):[...a,item]}); };
+
+  const saveEdit = () => {
+    if (!editForm.name||!editForm.birth){alert('이름과 생년월일은 필수입니다.');return;}
+    setPatients(patients.map(pt => pt.id === p.id ? {...editForm} : pt));
+    setEditing(false);
+  };
+
+  const getChatUrl = (type) => `https://valuecareai.github.io/homecare0324/?chat=${type}_${p.id}`;
+  const getChatMsg = (type) => {
+    const name = type === 'guardian' ? p.guardianName : p.caregiverName;
+    const role = type === 'guardian' ? '보호자' : '요양보호사';
+    return `[재택진료팀] ${p.name}님 담당 ${role} ${name}님,\n아래 링크로 접속하시면 의료진과 채팅이 가능합니다.\n${getChatUrl(type)}`;
+  };
+  const getPhone = (type) => (type === 'guardian' ? p.guardian : p.caregiver).replace(/-/g, '');
+
+  // SMS 문자 보내기 (Solapi API via Supabase Edge Function)
+  const sendSMS = async (type) => {
+    const phone = type === 'guardian' ? p.guardian : p.caregiver;
+    if (!phone || !phone.replace(/-/g,'')) { alert('연락처가 등록되지 않았습니다.'); return; }
+    const msg = getChatMsg(type);
+    const role = type === 'guardian' ? '보호자' : '요양보호사';
+    if (!confirm(`${role}(${phone})에게 문자를 발송하시겠습니까?`)) return;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/send-sms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ to: phone, text: msg })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`${role}에게 문자 발송 완료!`);
+      } else {
+        alert('문자 발송 실패: ' + JSON.stringify(data.error));
+      }
+    } catch(e) {
+      alert('문자 발송 오류: ' + e.message);
+    }
+  };
+
+  // 링크 복사 (클립보드/네이티브 공유)
+  const shareChatLink = (type) => {
+    const text = getChatMsg(type);
+    if (navigator.share) {
+      navigator.share({ title: '재택진료 채팅', text: text });
+    } else {
+      navigator.clipboard.writeText(text).then(() => alert('링크가 복사되었습니다.'));
+    }
+  };
+
+  if (editing) {
+    return (
+      <div>
+        <button className="btn btn-sm" onClick={()=>setEditing(false)} style={{marginBottom:12,background:'#f0f0f0',color:'#333'}}>{IC.back} 취소</button>
+        <h3 style={{marginBottom:16}}>환자 정보 수정</h3>
+        <div className="form-group"><label>이름 *</label><input className="form-input" value={editForm.name} onChange={e=>setEditForm({...editForm,name:e.target.value})} placeholder="환자 이름"/></div>
+        <div className="form-group"><label>생년월일 *</label><input className="form-input" type="date" value={editForm.birth} onChange={e=>setEditForm({...editForm,birth:e.target.value})}/></div>
+        <div className="form-group"><label>주소</label><input className="form-input" value={editForm.address} onChange={e=>setEditForm({...editForm,address:e.target.value})} placeholder="상세 주소 입력"/></div>
+        <div className="form-group"><label>질병 (복수 선택)</label><div className="chip-container">{DISEASES.map(d=><span key={d} className={`chip ${editForm.diseases.includes(d)?'selected':''}`} onClick={()=>toggleEdit('diseases',d)}>{d}</span>)}</div></div>
+        <div className="form-group"><label>생활습관 (복수 선택)</label><div className="chip-container">{HABITS.map(h=><span key={h} className={`chip ${editForm.habits.includes(h)?'selected':''}`} onClick={()=>toggleEdit('habits',h)}>{h}</span>)}</div></div>
+        <div className="form-group"><label>특이사항</label><textarea className="form-input" value={editForm.notes} onChange={e=>setEditForm({...editForm,notes:e.target.value})} placeholder="특이사항 메모"/></div>
+        <div className="form-group"><label>보호자 이름</label><input className="form-input" value={editForm.guardianName} onChange={e=>setEditForm({...editForm,guardianName:e.target.value})} placeholder="보호자 이름(관계)"/></div>
+        <div className="form-group"><label>보호자 연락처</label><input className="form-input" value={editForm.guardian} onChange={e=>setEditForm({...editForm,guardian:e.target.value})} placeholder="010-XXXX-XXXX"/></div>
+        <div className="form-group"><label>요양보호사 이름</label><input className="form-input" value={editForm.caregiverName} onChange={e=>setEditForm({...editForm,caregiverName:e.target.value})} placeholder="요양보호사 이름"/></div>
+        <div className="form-group"><label>요양보호사 연락처</label><input className="form-input" value={editForm.caregiver} onChange={e=>setEditForm({...editForm,caregiver:e.target.value})} placeholder="010-XXXX-XXXX"/></div>
+        <button className="btn btn-primary btn-full" onClick={saveEdit}>{IC.save} 저장하기</button>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <button className="btn btn-sm" onClick={onBack} style={{marginBottom:12,background:'#f0f0f0',color:'#333'}}>{IC.back} 목록으로</button>
+      <div style={{display:'flex',gap:8,marginBottom:12}}>
+        <button className="btn btn-sm" onClick={onBack} style={{background:'#f0f0f0',color:'#333'}}>{IC.back} 목록으로</button>
+        <button className="btn btn-sm btn-primary" onClick={()=>{setEditForm({...p});setEditing(true);}}>{IC.note} 수정</button>
+      </div>
       <div className="card">
         <div style={{display:'flex',alignItems:'center',marginBottom:16}}>
           <div className="patient-avatar" style={{background:COLORS[p.id%COLORS.length],width:56,height:56,fontSize:'1.3em'}}>{p.name[0]}</div>
@@ -409,6 +568,14 @@ function PatientDetail({patient: p, onBack, onChat}) {
         <div style={{display:'flex',gap:8}}>
           <button className="btn btn-primary btn-sm" style={{flex:1}} onClick={()=>onChat({type:'guardian',patientId:p.id,name:p.guardianName})}>{IC.chat} 보호자 채팅</button>
           <button className="btn btn-warning btn-sm" style={{flex:1}} onClick={()=>onChat({type:'caregiver',patientId:p.id,name:p.caregiverName})}>{IC.chat} 요양보호사 채팅</button>
+        </div>
+        <div style={{display:'flex',gap:8,marginTop:8}}>
+          <button className="btn btn-sm" style={{flex:1,background:'#2DB400',color:'#fff'}} onClick={()=>sendSMS('guardian')}>SMS 보호자 문자</button>
+          <button className="btn btn-sm" style={{flex:1,background:'#2DB400',color:'#fff'}} onClick={()=>sendSMS('caregiver')}>SMS 요양보호사 문자</button>
+        </div>
+        <div style={{display:'flex',gap:8,marginTop:8}}>
+          <button className="btn btn-sm" style={{flex:1,background:'#f0f0f0',color:'#333'}} onClick={()=>shareChatLink('guardian')}>{IC.plane} 보호자 링크 복사</button>
+          <button className="btn btn-sm" style={{flex:1,background:'#f0f0f0',color:'#333'}} onClick={()=>shareChatLink('caregiver')}>{IC.plane} 요양보호사 링크 복사</button>
         </div>
       </div>
       <div className="card"><button className="btn btn-sm" style={{background:'#f0f0f0',color:'#333',width:'100%'}}>{IC.clip} 파일/사진 첨부</button></div>
@@ -1196,7 +1363,6 @@ function RouteMapModal({visits, patients, onClose}) {
         L.polyline(ll,{color:'#667eea',weight:3,dashArray:'10,6'}).addTo(map);
         map.fitBounds(L.latLngBounds(ll),{padding:[30,30]});
         setRouteInfo({distance:'계산불가',time:'계산불가',stops:optimized});setLoading(false);});
-
     return()=>{map.remove();mapInst.current=null;};
   },[]);
 
@@ -1271,23 +1437,64 @@ function ChatPage(props) {
   var msg = msgState[0];
   var setMsg = msgState[1];
   var endRef = React.useRef(null);
+  var messagesState = React.useState([]);
+  var messages = messagesState[0];
+  var setMessages = messagesState[1];
 
-  var key = String(chatTarget.type)+'_'+String(chatTarget.patientId);
-  var messages = chats[key]||[];
+  var chatKey = String(chatTarget.type)+'_'+String(chatTarget.patientId);
+
+  // Real-time Supabase listener
+  React.useEffect(function(){
+    // Load existing messages from local state first
+    var localMsgs = chats[chatKey] || [];
+    setMessages(localMsgs);
+
+    // Load from Supabase
+    supabase.from('chat_messages').select('*').eq('chat_key', chatKey).order('created_at', {ascending:true})
+      .then(function(res){
+        if(res.data && res.data.length > 0){
+          setMessages(res.data.map(function(d){ return {id:d.id, from:d.from_user, text:d.text, time:d.time}; }));
+        }
+      });
+
+    // Subscribe to real-time inserts
+    var channel = supabase.channel('chat_'+chatKey)
+      .on('postgres_changes', {event:'INSERT', schema:'public', table:'chat_messages', filter:'chat_key=eq.'+chatKey}, function(payload){
+        var d = payload.new;
+        setMessages(function(prev){ return prev.concat([{id:d.id, from:d.from_user, text:d.text, time:d.time}]); });
+      })
+      .subscribe();
+
+    return function(){ supabase.removeChannel(channel); };
+  }, [chatKey]);
+
+  React.useEffect(function(){if(endRef.current){endRef.current.scrollIntoView({behavior:'smooth'});}},[messages]);
 
   var send = function(){
     if(!msg.trim())return;
-    var m={id:Date.now(),from:'me',text:msg,time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})};
-    var capturedKey = key;
-    setChats(function(prev){var n={};for(var k in prev){n[k]=prev[k];}n[capturedKey]=(prev[capturedKey]||[]).concat([m]);return n;});
-    setMsg('');
-    setTimeout(function(){
-      var r={id:Date.now()+1,from:'other',text:'네, 확인했습니다.',time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})};
-      setChats(function(prev){var n={};for(var k in prev){n[k]=prev[k];}n[capturedKey]=(prev[capturedKey]||[]).concat([r]);return n;});
-    },1000);
-  };
+    var now = new Date();
+    var timeStr = now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    var messageData = {
+      chat_key: chatKey,
+      from_user: 'me',
+      text: msg,
+      time: timeStr
+    };
 
-  React.useEffect(function(){if(endRef.current){endRef.current.scrollIntoView({behavior:'smooth'});}},[messages]);
+    // Write to Supabase (will trigger real-time subscription)
+    supabase.from('chat_messages').insert(messageData).then(function(){});
+
+    // Also update local chats state for localStorage backup
+    var localMsg = {id: Date.now(), from: 'me', text: msg, time: timeStr};
+    setChats(function(prev){
+      var n = {};
+      for(var k in prev){ n[k] = prev[k]; }
+      n[chatKey] = (prev[chatKey]||[]).concat([localMsg]);
+      return n;
+    });
+
+    setMsg('');
+  };
 
   var patient = null;
   for(var fi=0;fi<patients.length;fi++){if(patients[fi].id===chatTarget.patientId){patient=patients[fi];break;}}
